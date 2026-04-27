@@ -67,7 +67,6 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
 
     public boolean canAttack(){
         if(canAttack && this.target!=null){
-            isAnimation = true;
             canAttack = false;
             return true;
         }
@@ -76,8 +75,8 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
 
     public void findTarget(){
         this.target = EnemyRepository.getEnemyRepository().getEnemies().stream().filter(enemy -> {
-            double distance = Math.sqrt(Math.pow(enemy.getX()+(double)CELL_WIDTH/2-x+(double)CELL_WIDTH/2,2)
-                    +Math.pow(enemy.getY()+ (double) CELL_WIDTH /2-y+(double)CELL_WIDTH/2,2));
+            double distance = Math.sqrt(Math.pow((enemy.getX()+(double)CELL_WIDTH/2)-(x+(double)CELL_WIDTH/2),2)
+                    +Math.pow((enemy.getY()+ (double) CELL_WIDTH /2)-(y+(double)CELL_WIDTH/2),2));
             return distance<=radius;
         }).findFirst().orElse(null);
     }
@@ -103,19 +102,17 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
         if(this.getTarget()!=null) {
             double dx = this.getTarget().getX()  - this.getX();
             double dy = this.getTarget().getY()  - this.getY();
-            double angle = Math.atan2(dy, dx) - Math.PI;
+            double angle = Math.atan2(dy, dx) + Math.PI/2;
             return MapUtils.rotateImage(getImage(), angle);
         }
         return getImage();
     }
 
-    public void attack(){
-
-    }
-
     public boolean getIsAnimation(){
         return isAnimation;
     }
+
+    public void setAnimation(boolean animation) {isAnimation = animation;}
 
     public byte getId() {
         return id;

@@ -1,5 +1,6 @@
 package rcpa.project.service;
 
+import rcpa.project.entity.attacks.SpinAttack;
 import rcpa.project.entity.base.*;
 import rcpa.project.repository.AttackRepository;
 import rcpa.project.repository.CellRepository;
@@ -14,6 +15,7 @@ import java.io.File;
 import java.io.IOException;
 
 import static rcpa.project.config.Configuration.*;
+import static rcpa.project.config.Configuration.GameStatus.MAIN_MENU;
 
 /**
  * @author Ivan Monin
@@ -57,16 +59,17 @@ public class GameMaster {
      */
     private final AttackRepository attackRepository;
 
-
     /**
      * Статус игры
      */
-    private byte gameStatus = WAVE_END;
+    private GameStatus gameStatus = MAIN_MENU;
 
     /**
-     * Счетчик секунд
+     * Счетчик кадров
      */
-    private double secondsCount = 0;
+    private int frameCount = 0;
+    private int animationLevelLoadingStatus = 0;
+
     /**
      * Переменная текущей волны
      */
@@ -120,72 +123,128 @@ public class GameMaster {
      * @param g - графика передаваемая с панели
      */
     public void renderFrame(Graphics g) {
-        secondsCount += (double) MILLISECONDS_PER_FRAME / 1000;
+        if(gameStatus != MAIN_MENU) frameCount++;
 
         if(isDragTower){
-            Graphics2D g2d = (Graphics2D) g;
-
-            AlphaComposite alphaComposite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.2f);
-            g2d.setComposite(alphaComposite);
-
-            if (dragTower.isCanOccupe()) {
-                g2d.setColor(Color.GREEN);
-            } else {
-                g2d.setColor(Color.RED);
-            }
-
-            g2d.fillOval((int)(dragTower.getX()+CELL_WIDTH/2-dragTower.getRadius()),
-                    (int)(dragTower.getY()+CELL_WIDTH/2-dragTower.getRadius()),
-                    (int)dragTower.getRadius()*2,
-                    (int)dragTower.getRadius()*2);
-            g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
-            g2d.drawOval((int)(dragTower.getX()+CELL_WIDTH/2-dragTower.getRadius()),
-                    (int)(dragTower.getY()+CELL_WIDTH/2-dragTower.getRadius()),
-                    (int)dragTower.getRadius()*2,
-                    (int)dragTower.getRadius()*2);
-            g2d.drawImage(dragTower.getImage(), dragTower.getX(),dragTower.getY(),null);
+            onDragTowerEvent(g);
         }
 
-        if (gameStatus == WAVE_END) {
-            g.setFont(new Font("Arial", Font.PLAIN, 50));
-            g.setColor(Color.WHITE);
-            g.drawString(String.valueOf((WAVE_CHANGE_COOLDOWN - (int) secondsCount)), this.mapUtils.getWidth() / 2 - 20, this.mapUtils.getHeight() / 6);
-            if (secondsCount >= WAVE_CHANGE_COOLDOWN) {
-                secondsCount = 1;
-                gameStatus = WAVE_START;
-                waveLevel++;
-                enemyCount += 2;
-                enemyCountSpawned = 0;
-                player.getTowerRepository().getTowers().forEach(t->{
-                    t.setLastAttackTime(0);
-                    t.setCanAttack();
-                });
-            }
-        } else if (gameStatus == WAVE_START) {
-            g.setFont(new Font("Arial", Font.PLAIN, 50));
-            g.setColor(Color.WHITE);
-            g.drawString("Wave " + waveLevel, this.mapUtils.getWidth() / 2 - 20, this.mapUtils.getHeight() / 6);
+        if(gameStatus == MAIN_MENU){
 
-            if ((int) (secondsCount) % (DEFAULT_ENEMY_SPAWN_COOLDOWN * (enemyCountSpawned + 1)) == 0
-                    && enemyCount > enemyCountSpawned) {
-                enemySpawn();
-            }
-            else if(enemyCount==enemyCountSpawned && enemyRepository.getEnemies().isEmpty()){
-                gameStatus = WAVE_END;
-                secondsCount = 0;
-            }
-
-            enemiesMove(g);
+        }
+        else if(gameStatus == GameStatus.MAIN_MENU_LEVEL){
+            mainMenuLevelState(g);
+        }
+        else if(gameStatus == GameStatus.LEVEL_ENTER){
+            gameStatus = GameStatus.WAVE_STARTING;
+        }
+        else if (gameStatus == GameStatus.WAVE_STARTING) {
             towersAttack(g);
-            attacksMove(g);
+            waveStarting(g);
+        } else if (gameStatus == GameStatus.WAVE_STARTED) {
+            towersAttack(g);
+            waveStarted(g);
+        }
+    }
+
+    private void mainMenuLevelState(Graphics g) {
+        try {
+            animationLevelLoadingStatus+=15;
+
+            BufferedImage bufImg = ImageIO.read(new File(HONEY_OVERGROUND_IMAGE));
+            g.drawImage(bufImg.getScaledInstance(bufImg.getWidth(),
+                            (int) (bufImg.getHeight()*1.2),
+                    Image.SCALE_AREA_AVERAGING),
+                    0, (int) (bufImg.getHeight()*(-1.2)+animationLevelLoadingStatus),null);
+
+            if(bufImg.getHeight()*(-1.2)+animationLevelLoadingStatus>=0){
+                gameStatus=GameStatus.LEVEL_ENTER;
+                animationLevelLoadingStatus=0;
+                frameCount=0;
+
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Метод для отображения сцены начала волны
+     * @param g - графика
+     */
+    private void waveStarting(Graphics g) {
+        g.setFont(new Font("Arial", Font.PLAIN, 50));
+        g.setColor(Color.WHITE);
+        g.drawString(String.valueOf((WAVE_CHANGE_COOLDOWN - getSecondsLeft())), this.mapUtils.getWidth() / 2 - 20, this.mapUtils.getHeight() / 6);
+        if (getSecondsLeft() >= WAVE_CHANGE_COOLDOWN) {
+            frameCount = 100;
+            gameStatus = GameStatus.WAVE_STARTED;
+            waveLevel++;
+            enemyCount += 2;
+            enemyCountSpawned = 0;
+            player.getTowerRepository().getTowers().forEach(t->{
+                t.setLastAttackTime(0);
+                t.setCanAttack();
+            });
+            attackRepository.getAttacks().forEach(a-> attackRepository.deleteAttack(a.getId()));
+        }
+    }
+
+    /**
+     * Метод для отображения сцены конца волны
+     * @param g
+     */
+    private void waveStarted(Graphics g) {
+
+        g.setFont(new Font("Arial", Font.PLAIN, 50));
+        g.setColor(Color.WHITE);
+        g.drawString("Wave " + waveLevel, this.mapUtils.getWidth() / 2 - 30, this.mapUtils.getHeight() / 6);
+
+        if (getSecondsLeft() == (DEFAULT_ENEMY_SPAWN_COOLDOWN * (enemyCountSpawned + 1))
+                && enemyCount > enemyCountSpawned) {
+            enemySpawn();
+        }
+        else if(enemyCount==enemyCountSpawned && enemyRepository.getEnemies().isEmpty()){
+            gameStatus = GameStatus.WAVE_STARTING;
+            frameCount = 0;
+        }
+        enemiesMove(g);
+        attacksMove(g);
+
+    }
+
+    /**
+     * Отображение передвижения передвигаемой башни
+     * @param g - графика
+     */
+    private void onDragTowerEvent(Graphics g) {
+        Graphics2D g2d = (Graphics2D) g;
+
+        AlphaComposite alphaComposite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0.2f);
+        g2d.setComposite(alphaComposite);
+
+        if (dragTower.isCanOccupe()) {
+            g2d.setColor(Color.GREEN);
+        } else {
+            g2d.setColor(Color.RED);
         }
 
+        g2d.fillOval((int)(dragTower.getX()+CELL_WIDTH/2-dragTower.getRadius()),
+                (int)(dragTower.getY()+CELL_WIDTH/2-dragTower.getRadius()),
+                (int)dragTower.getRadius()*2,
+                (int)dragTower.getRadius()*2);
+        g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1.0f));
+        g2d.drawOval((int)(dragTower.getX()+CELL_WIDTH/2-dragTower.getRadius()),
+                (int)(dragTower.getY()+CELL_WIDTH/2-dragTower.getRadius()),
+                (int)dragTower.getRadius()*2,
+                (int)dragTower.getRadius()*2);
+        g2d.drawImage(dragTower.getImage(), dragTower.getX(),dragTower.getY(),null);
     }
 
     /**
      * Метод добавления новых врагов на карту
      */
-    public void enemySpawn() {
+    private void enemySpawn() {
         try {
             Enemy enemy = (Enemy) enemyRepository.getEnemiesMarket().get(0).clone();
             enemyRepository.addNewEnemy(enemy);
@@ -200,10 +259,12 @@ public class GameMaster {
      *
      * @param g - графика
      */
-    public void enemiesMove(Graphics g) {
+    private void enemiesMove(Graphics g) {
         enemyRepository.getEnemies().forEach(e -> {
-            int imageType = e.move();
-            if(secondsCount%0.1<0.05) e.playAnimation(imageType);
+            int imageType=e.move();
+            if(frameCount%8==0) {
+                e.playAnimation(imageType);
+            }
 
             g.drawImage(e.getImage(),
                     e.getX(),
@@ -214,17 +275,17 @@ public class GameMaster {
             g.fillRect(e.getX()+14,e.getY(), (int)e.getHealth()*100 / (int) e.getMaxHealth(),10);
             g.setColor(Color.black);
             g.drawRect(e.getX()+14,e.getY(),100,10);
+            g.setColor(Color.white);
+            g.setFont(new Font("Arial", Font.PLAIN, 10));
+            g.drawString(Double.toString((double) Math.round(e.getHealth() * 10) /10),e.getX()+14+40,e.getY()+10);
         });
     }
 
     /**
-     * Метод установки башни
+     * Метод создания атак башен
+     * @param g - графика
      */
-    public void spawnTower(Tower tower) {
-        player.getTowerRepository().addNewTower(tower);
-    }
-
-    public void towersAttack(Graphics g) {
+    private void towersAttack(Graphics g) {
         player.getTowerRepository().getTowers().forEach(t -> {
             BufferedImage towerImage = t.rotateTower();
             g.drawImage(towerImage,
@@ -232,50 +293,68 @@ public class GameMaster {
                     t.getY(),
                     null);
 
-            if (t.canAttack() || t.getIsAnimation()) {
-                if (secondsCount%0.3<0.5 && t.playAnimation()) {
+            if(t.canAttack()){
+                if (getSecondsLeftDouble() - t.getLastAttackTime() >= t.getAttackCooldown()) {
+                    t.playAnimation();
+                }
+            }
+
+            if(t.getIsAnimation()){
+                if(frameCount%8==0 && t.playAnimation()){
                     try {
-                        attackRepository.addNewAttack((t.getAttack().getClass())(t.getAttack()).clone());
+                        t.getAttack().setTarget(t.getTarget());
+                        switch(t.getAttack().getAttackType()){
+                            case SPIN_ATTACK -> {
+                                ((SpinAttack)t.getAttack()).setOwnTower(t);
+                                t.getAttack().setX(t.getX());
+                                t.getAttack().setY(t.getY());
+                            }
+                            case SHOOT_ATTACK, MELEE_ATTACK -> {
+                                t.getAttack().setX(t.getX()+ CELL_WIDTH/2);
+                                t.getAttack().setY(t.getY()+ CELL_WIDTH/2);
+                            }
+
+                        }
+                        t.setLastAttackTime(getSecondsLeftDouble());
+                        Attack newAttack = (Attack)(t.getAttack()).clone();
+
+                        attackRepository.addNewAttack(newAttack);
                     } catch (CloneNotSupportedException e) {
                         throw new RuntimeException(e);
                     }
-                    t.setLastAttackTime(secondsCount);
                 }
-            } else if (!t.isCanAttack() && secondsCount-t.getLastAttackTime() >= t.getAttackCooldown() && !t.getIsAnimation()) {
+            }
+            if (!t.isCanAttack() && !t.getIsAnimation() &&
+                    getSecondsLeftDouble() - t.getLastAttackTime() >= t.getAttackCooldown()) {
                 t.setCanAttack();
             }
         });
     }
 
-    public void attacksMove(Graphics g) {
+    /**
+     * Метод отображения атак
+     * @param g - графика
+     */
+    private void attacksMove(Graphics g) {
         attackRepository.getAttacks().forEach(a -> {
             Enemy target = a.getTarget();
-            if (target == null) {
+            if (a.getAttackType()!=AttackType.SPIN_ATTACK && target == null) {
                 attackRepository.deleteAttack(a.getId());
                 return;
             }
-            if(a.move(g)) attackRepository.deleteAttack(a.getId());
-            if (target.getHealth() == 0) enemyRepository.deleteEnemy(target.getId());
+            if(!a.move(g)) {
+                attackRepository.deleteAttack(a.getId());
+            }
         });
     }
 
-    public Tower getDragTower(){
-        return this.dragTower;
-    }
-
-    public void setDragTower(Tower dragTower){
-        this.dragTower = dragTower;
-    }
-
-    public boolean isDragTower() {
-        return isDragTower;
-    }
-
-    public void setIsDragTower(boolean isDragTower) {
-        this.isDragTower = isDragTower;
-    }
-
-    public Player getPlayer(){
-        return this.player;
-    }
+    public int getSecondsLeft() {return (frameCount * MILLISECONDS_PER_FRAME/2) / 1000;}
+    public double getSecondsLeftDouble(){return (double) Math.round(getSecondsLeft() * 100) /100;}
+    public Tower getDragTower(){return this.dragTower;}
+    public void setDragTower(Tower dragTower){this.dragTower = dragTower;}
+    public boolean isDragTower() {return isDragTower;}
+    public void setIsDragTower(boolean isDragTower) {this.isDragTower = isDragTower;}
+    public Player getPlayer(){return this.player;}
+    public void setGameStatus(GameStatus gameStatus) {this.gameStatus = gameStatus;}
+    public GameStatus getGameStatus() {return this.gameStatus;}
 }

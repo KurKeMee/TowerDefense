@@ -3,6 +3,8 @@ package rcpa.project.repository;
 import rcpa.project.entity.attacks.MeleeAttack;
 import rcpa.project.entity.attacks.ShootAttack;
 import rcpa.project.entity.attacks.SpinAttack;
+import rcpa.project.entity.attacks.SummonAttack;
+import rcpa.project.entity.base.AttackType;
 import rcpa.project.entity.base.Tower;
 
 import javax.imageio.ImageIO;
@@ -88,19 +90,20 @@ public class TowerRepository {
 
             this.towerMarket.addAll(Arrays.asList(new Tower(getFreeId(),
                                                             200,
-                                                            10,
+                                                            5,
                                                             3 * CELL_WIDTH,
                                                             2,
                                                             new ShootAttack(
                                                                     AttackRepository.getAttackRepository().getFreeId(),
-                                                                    10,
+                                                                    5,
                                                                     ImageIO.read(new File(LASER_TOWER_ATTACK)),
                                                                     0,
                                                                     0,
-                                                                    null),
+                                                                    null,
+                                                                    AttackType.SHOOT_ATTACK),
                                                             towerAnimationLaser.getFirst(),
                                                             towerAnimationLaser,
-                                                            "Laser Tower"),
+                                                            "Spiky Bee"),
                                                     new Tower(getFreeId(),
                                                             200,
                                                             10,
@@ -110,23 +113,23 @@ public class TowerRepository {
                                                                     AttackRepository.getAttackRepository().getFreeId(),
                                                                     10,
                                                                     ImageIO.read(new File(SKELETONKING_TOWER_ATTACK)),
-                                                                    0,0,null),
+                                                                    0,0,null, AttackType.SUMMON_ATTACK),
                                                             towerAnimationSkeletonKing.getFirst(),
                                                             towerAnimationSkeletonKing,
                                                             "Skeleton King Tower"),
                                                     new Tower(getFreeId(),
                                                             200,
                                                             3, //TODO Добавить определение пересечения плоскостей
-                                                            3 * CELL_WIDTH,
-                                                            1,
+                                                            1.5 * CELL_WIDTH,
+                                                            3,
                                                             new MeleeAttack(
                                                                     AttackRepository.getAttackRepository().getFreeId(),
                                                                     3,
                                                                     ImageIO.read(new File(SABER_TOWER_ATTACK)),
-                                                                    0,0,null),
+                                                                    0,0,null, AttackType.MELEE_ATTACK),
                                                             towerAnimationSaber.getFirst(),
                                                             towerAnimationSaber,
-                                                            "Saber Tower"),
+                                                            "Melee bee"),
                                                     new Tower(getFreeId(),
                                                             200,
                                                             3,
@@ -136,23 +139,23 @@ public class TowerRepository {
                                                                     AttackRepository.getAttackRepository().getFreeId(),
                                                                     3,
                                                                     ImageIO.read(new File(TRIPLESHOOTER_TOWER_ATTACK)),
-                                                                    0,0,null),
+                                                                    0,0,null, AttackType.SHOOT_ATTACK),
                                                             towerAnimationTripleShooter.getFirst(),
                                                             towerAnimationTripleShooter,
                                                             "TripleShooter Tower"),
                                                     new Tower(getFreeId(),
                                                             200,
-                                                            7,
-                                                            3 * CELL_WIDTH,
-                                                            1,
+                                                            0.2,
+                                                            1.5 * CELL_WIDTH,
+                                                            5,
                                                             new SpinAttack(
                                                                     AttackRepository.getAttackRepository().getFreeId(),
-                                                                    7,
+                                                                    0.2,
                                                                     ImageIO.read(new File(CACTUS_TOWER_ATTACK)),
-                                                                    0,0,null,5),
+                                                                    0,0,null,   5, AttackType.SPIN_ATTACK,CELL_WIDTH*1.5),
                                                             towerAnimationCactus.getFirst(),
                                                             towerAnimationCactus,
-                                                            "Cactus Tower")));
+                                                            "Spin Bee")));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

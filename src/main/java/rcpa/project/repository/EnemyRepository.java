@@ -74,7 +74,7 @@ public class EnemyRepository {
             enemiesMarket.addAll(Arrays.asList(new Enemy(
                                                         getFreeId(),
                                                         30,
-                                                        2,
+                                                        1,
                                                         anim.getFirst(),
                                                         anim,
                                                         "Slime")));

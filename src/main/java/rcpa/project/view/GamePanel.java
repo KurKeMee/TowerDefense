@@ -5,9 +5,12 @@ import rcpa.project.repository.CellRepository;
 import rcpa.project.service.GameMaster;
 import rcpa.project.util.MapUtils;
 
+import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import java.io.File;
+import java.io.IOException;
 
 import static rcpa.project.config.Configuration.*;
 
@@ -25,6 +28,8 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
      */
     private final GameMaster gameMaster;
 
+    private GameStatus currentGameStatus;
+
 
     /**
      * Переменная для хранения экземпляра класса MapUtils
@@ -32,6 +37,8 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
      * @see MapUtils
      */
     private final MapUtils mapUtils;
+
+    private JFrame frame;
 
     private JPanel glassPane;
 
@@ -47,30 +54,92 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
         this.addMouseListener(this);
         this.addMouseMotionListener(this);
 
-        drawMap();
-        initPanel(frame);
+        this.frame = frame;
+
+        initPanel();
         timer.start();
     }
 
     /**
      * Метод инициализации панели
-     * @param frame - передаваемый параметр окна
      */
-    private void initPanel(JFrame frame){
-        glassPane = new JPanel(null) {
+    public void initPanel() {
+        resetComponents(frame);
+        this.setBounds(0, 0,1024, 800);
+        this.setLayout(null);
+        frame.setSize(1024,800);
+        frame.setLocationRelativeTo(null);
+
+        JButton butLevels = new JButton(LEVEL_BUTTON_TEXT_RU){
             @Override
             protected void paintComponent(Graphics g) {
-                super.paintComponent(g);
-                gameMaster.renderFrame(g);
+                try {
+                    Image bg = ImageIO.read(new File(LEVELS_BUTTON_IMAGE));
+                    g.drawImage(bg, 0, 0, getWidth(), getHeight(), this);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                g.setColor(Color.ORANGE);
+                g.setFont(new Font("Gabriola", Font.BOLD, 50));
+                FontMetrics fm = g.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(getText())) / 2;
+                int y = (getHeight() - fm.getHeight()) + fm.getAscent();
+                g.drawString(getText(), x, y+12);
             }
         };
-        glassPane.setOpaque(false);
-        frame.setGlassPane(glassPane);
-        glassPane.setVisible(true);
+        JButton butExit = new JButton(EXIT_BUTTON_TEXT_RU){
+            @Override
+            protected void paintComponent(Graphics g) {
+                // Рисуем фон
+                try {
+                    Image bg = ImageIO.read(new File(EXIT_BUTTON_IMAGE));
+                    g.drawImage(bg, 0, 0, getWidth(), getHeight(), this);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
 
+                // Рисуем текст по центру
+                g.setColor(Color.orange);
+                g.setFont(new Font("Gabriola", Font.BOLD, 46));
+                FontMetrics fm = g.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(getText())) / 2;
+                int y = (getHeight() - fm.getHeight()) + fm.getAscent();
+                g.drawString(getText(), x, y+10);
+            }
+        };
+
+        butLevels.setContentAreaFilled(false);  // Убираем фон
+        butLevels.setBorderPainted(false);      // Убираем границы
+        butLevels.setFocusPainted(false);       // Убираем рамку фокуса
+        butLevels.setOpaque(false);             // Делаем кнопку прозрачной
+
+        butExit.setContentAreaFilled(false);
+        butExit.setBorderPainted(false);
+        butExit.setFocusPainted(false);
+        butExit.setOpaque(false);
+
+        butLevels.setIcon(new ImageIcon(LEVELS_BUTTON_IMAGE));
+        butExit.setIcon(new ImageIcon(EXIT_BUTTON_IMAGE));
+
+        butLevels.setBounds(100,400,384,96);
+        butExit.setBounds(100,600,384,96);
+
+        butLevels.addActionListener(_ -> gameMaster.setGameStatus(GameStatus.MAIN_MENU_LEVEL));
+
+        butExit.addActionListener(_ -> System.exit(0));
+
+
+        this.add(butLevels);
+        this.add(butExit);
+    }
+
+    public void levelLoad(){
+        resetComponents(frame);
+
+        drawMap();
         this.setBounds(0, 0, this.mapUtils.getWidth(), this.mapUtils.getHeight());
         setLayout(null);
-
         gameMaster.getPlayer().getSlotRepository().getSlots().forEach(slot -> {
             slot.setBounds(
                     MapUtils.getMapUtils().getWidth() - TOWER_SLOT_RESIZING,
@@ -83,12 +152,29 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
 
         CellRepository.getCellRepository().getCells().forEach(cell ->{
             cell.setBounds(cell.getXCord()*CELL_WIDTH,cell.getYCord()*CELL_WIDTH,CELL_WIDTH,CELL_WIDTH);
-            this.setComponentZOrder(cell,0);
+            //this.setComponentZOrder(cell,0);
             this.add(cell);
         });
 
         frame.setSize(this.mapUtils.getWidth(), this.mapUtils.getHeight());
         frame.setLocationRelativeTo(null);
+    }
+
+    private void resetComponents(JFrame frame){
+        this.removeAll();
+        this.revalidate();
+        this.repaint();
+
+        glassPane = new JPanel(null) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                gameMaster.renderFrame(g);
+            }
+        };
+        glassPane.setOpaque(false);
+        frame.setGlassPane(glassPane);
+        glassPane.setVisible(true);
     }
 
 
@@ -99,12 +185,35 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
         mapUtils.analyzeMap(MAP_1);
     }
 
+    @Override
+    protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        try {
+            g.drawImage(ImageIO.read(new File(MENU_BACKGROUND_IMAGE)),0,0,null);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        gameMaster.renderFrame(g);
+    }
+
     /**
      * Метод для перерисовки окна
      * @param e the event to be processed
      */
     @Override
     public void actionPerformed(ActionEvent e) {
+        if(currentGameStatus!=gameMaster.getGameStatus()){
+            currentGameStatus = gameMaster.getGameStatus();
+            switch(currentGameStatus){
+                case LEVEL_ENTER:
+                    frame.setIconImage(null);
+                    levelLoad();
+                    break;
+                default:
+                    break;
+            }
+        }
         repaint();
     }
 
@@ -131,12 +240,14 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
     public void mouseReleased(MouseEvent e) {
         Tower newTower = gameMaster.getDragTower();
         if(newTower != null) {
-            newTower.setBounds(newTower.getX(),newTower.getY(),newTower.getWidth(),newTower.getHeight());
-            this.add(newTower);
+            if(newTower.isCanOccupe()){
+                newTower.setBounds(newTower.getX(),newTower.getY(),newTower.getWidth(),newTower.getHeight());
+                this.add(newTower);
+                gameMaster.getPlayer().getTowerRepository().addNewTower(newTower);
+                CellRepository.getCellRepository().getCell(newTower.getX()/CELL_WIDTH,newTower.getY()/CELL_WIDTH).occupeCell();
+            }
             gameMaster.setIsDragTower(false);
             gameMaster.setDragTower(null);
-            gameMaster.getPlayer().getTowerRepository().addNewTower(newTower);
-
         }
         this.revalidate();
         this.repaint();

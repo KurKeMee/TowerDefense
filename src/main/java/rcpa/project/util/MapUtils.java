@@ -96,6 +96,16 @@ public class MapUtils {
                                 false,
                                 true,
                                 ImageIO.read(new File(ENEMY_PORTAL_CELL))));
+
+                    else if(color.getRed()==255
+                            && color.getGreen()==0
+                            && color.getBlue()==255)
+                        cellRepository.addNewCell(new Cell(x,
+                                y,
+                                true,
+                                false,
+                                true,
+                                ImageIO.read(new File(BLOCK_CELL))));
                 }
             }
         } catch (IOException e) {

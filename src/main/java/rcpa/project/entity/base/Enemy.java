@@ -94,7 +94,7 @@ public class Enemy implements Cloneable{
 
     public void takeDamage(double damage) {
         if (damage > 0 && damage < 100000) this.health -= damage;
-        if(this.health<0) this.health = 0;
+        if(this.health<0.1) this.health = 0;
     }
 
     public byte getId() {
