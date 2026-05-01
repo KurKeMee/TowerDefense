@@ -1,6 +1,8 @@
 package rcpa.project.view;
 
 import rcpa.project.entity.base.Tower;
+import rcpa.project.model.GameState;
+import rcpa.project.network.NetworkUtils;
 import rcpa.project.repository.CellRepository;
 import rcpa.project.service.GameMaster;
 import rcpa.project.util.MapUtils;
@@ -125,6 +127,39 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
         butLevels.setBounds(100,400,384,96);
         butExit.setBounds(100,600,384,96);
 
+        JButton butHost = new JButton("Создать игру");
+        butHost.setBounds(100, 500, 384, 48);
+        butHost.addActionListener(_ -> {
+            String roomName = gameMaster.createMultiplayerRoom();
+            if (roomName != null) {
+                JOptionPane.showMessageDialog(frame,
+                        "Игра создана!\nНазвание: " + roomName +
+                                "\n\nВторой игрок должен ввести это название");
+            }
+        });
+        this.add(butHost);
+
+        JButton butJoin = new JButton("Присоединиться");
+        butJoin.setBounds(100, 560, 384, 48);
+        butJoin.addActionListener(_ -> {
+            String roomName = JOptionPane.showInputDialog(frame, "Введите название комнаты:");
+            if (roomName != null && !roomName.isEmpty()) {
+                if (gameMaster.connectToServer("127.0.0.1", 8080)) {
+                    gameMaster.getGameClient().joinRoom(roomName);
+                }
+            }
+        });
+        this.add(butJoin);
+        JButton butStartGame = new JButton("Начать игру");
+        butStartGame.setBounds(100, 460, 384, 48);
+        butStartGame.addActionListener(_ -> {
+            if (gameMaster.getGameClient() != null) {
+                gameMaster.getGameClient().startGame();
+                System.out.println("Запрос на старт игры отправлен");
+            }
+        });
+        this.add(butStartGame);
+
         butLevels.addActionListener(_ -> gameMaster.setGameStatus(GameStatus.MAIN_MENU_LEVEL));
 
         butExit.addActionListener(_ -> System.exit(0));
@@ -206,6 +241,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
         if(currentGameStatus!=gameMaster.getGameStatus()){
             currentGameStatus = gameMaster.getGameStatus();
             switch(currentGameStatus){
+                case WAVE_STARTING:
                 case LEVEL_ENTER:
                     frame.setIconImage(null);
                     levelLoad();
@@ -213,6 +249,14 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
                 default:
                     break;
             }
+        }
+        if(gameMaster.getTowerToUpdate()!=null &&
+                (currentGameStatus==GameStatus.WAVE_STARTING ||
+                currentGameStatus==GameStatus.WAVE_STARTED ||
+                currentGameStatus==GameStatus.WAVE_END)){
+            this.add(gameMaster.getTowerToUpdate());
+            gameMaster.getPlayer().getTowerRepository().addNewTower(gameMaster.getTowerToUpdate());
+            gameMaster.clearTowerToUpdate();
         }
         repaint();
     }
@@ -245,6 +289,11 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
                 this.add(newTower);
                 gameMaster.getPlayer().getTowerRepository().addNewTower(newTower);
                 CellRepository.getCellRepository().getCell(newTower.getX()/CELL_WIDTH,newTower.getY()/CELL_WIDTH).occupeCell();
+
+                if (gameMaster.isMultiplayer()) {
+                    gameMaster.sendTowerPlaced(newTower);
+                }
+
             }
             gameMaster.setIsDragTower(false);
             gameMaster.setDragTower(null);

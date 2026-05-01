@@ -2,6 +2,10 @@ package rcpa.project.service;
 
 import rcpa.project.entity.attacks.SpinAttack;
 import rcpa.project.entity.base.*;
+import rcpa.project.model.GameState;
+import rcpa.project.model.Message;
+import rcpa.project.network.GameClient;
+import rcpa.project.network.GameServer;
 import rcpa.project.repository.AttackRepository;
 import rcpa.project.repository.CellRepository;
 import rcpa.project.repository.EnemyRepository;
@@ -22,7 +26,14 @@ import static rcpa.project.config.Configuration.GameStatus.MAIN_MENU;
  * <p>
  * Класс для рендеринга окна
  */
-public class GameMaster {
+public class GameMaster implements GameClient.ClientListener {
+
+    private GameClient gameClient;
+    private boolean isMultiplayer = false;
+    private boolean isHost = false;
+    private int playerId = -1;
+    private GameState gameState;
+    private GameServer gameServer;
 
     /**
      * Переменная для хранения экземпляра класса GameMaster
@@ -90,6 +101,7 @@ public class GameMaster {
     private Player player;
     private boolean isDragTower = false;
     private Tower dragTower;
+    private Tower towerToUpdate;
 
     /**
      * Конструктор объявлен как private для паттерна Singleton
@@ -348,6 +360,117 @@ public class GameMaster {
         });
     }
 
+    public String createMultiplayerRoom() {
+        if (!isMultiplayer) {
+            connectToServer("127.0.0.1", 8080);
+            try { Thread.sleep(500); } catch (InterruptedException e) {}
+        }
+
+        String roomName = "Game_" + System.currentTimeMillis() % 10000;
+        gameClient.createRoom(roomName);
+        isHost = true;
+        return roomName;
+    }
+
+    public void startServer(){
+        if (gameServer != null) return;
+
+        new Thread(() -> {
+            gameServer = new GameServer();
+            gameServer.start();
+        }).start();
+
+        // Подождать запуск
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public boolean connectToServer(String host, int port){
+        gameClient = new GameClient();
+        gameClient.setListener(this);
+        boolean connected = gameClient.connect(host, port);
+
+        if(connected){
+            isMultiplayer = true;
+        }
+        return connected;
+    }
+
+    public void sendTowerPlaced(Tower tower) {
+        if (isMultiplayer && gameClient != null) {
+            GameState.TowerData data = new GameState.TowerData(playerId, tower, GameState.TowerData.Action.PLACED);
+            gameClient.placeTower(data);
+        }
+    }
+
+    @Override
+    public void onConnected(int playerId){
+        this.playerId = playerId;
+        System.out.println("Подключен как игрок "+playerId);
+    }
+
+    @Override
+    public void onDisconnected(){
+        isMultiplayer = false;
+        System.out.println("Отключен от сервера");
+    }
+
+    @Override
+    public void onMessageReceived(Message message){
+        switch (message.getRequestType()) {
+            case GAME_STARTED:
+                System.out.println("Игра началась! Волна: " + message.getData("waveLevel"));
+                setGameStatus(GameStatus.LEVEL_ENTER);
+                break;
+            case PLACE_TOWER:
+                GameState.TowerData towerData = (GameState.TowerData) message.getData("towerData");
+                placeRemoteTower(towerData);
+                break;
+            case REMOVE_TOWER:
+                int towerId = (int) message.getData("towerId");
+                player.getTowerRepository().deleteTower(towerId);
+                break;
+        }
+    }
+
+    @Override
+    public void onGameStateReceived(GameState gameState){
+        applyGameState(gameState);
+    }
+
+    private void placeRemoteTower(GameState.TowerData towerData){
+        Tower tower = player.getTowerRepository().getTowerMarket().get(towerData.towerId);
+        if (tower != null) {
+            try {
+                this.towerToUpdate = (Tower) tower.clone();
+                this.towerToUpdate.setX(towerData.x);
+                this.towerToUpdate.setY(towerData.y);
+                this.towerToUpdate.setInSlot(false);
+                this.towerToUpdate.setCanAttack();
+                this.towerToUpdate.setBounds(towerData.x, towerData.y, CELL_WIDTH, CELL_WIDTH);
+
+                player.getTowerRepository().addNewTower(this.towerToUpdate);
+
+                Cell cell = CellRepository.getCellRepository().getCell(
+                        towerData.x / CELL_WIDTH,
+                        towerData.y / CELL_WIDTH
+                );
+                if (cell != null) {
+                    cell.occupeCell();
+                }
+
+            } catch (CloneNotSupportedException e) {
+                e.printStackTrace();
+            }
+    } else {
+        System.out.println("ERROR: Tower template not found for id " + towerData.towerId);
+    }
+    }
+
+    private void applyGameState(GameState gameState){this.gameState = gameState;}
     public int getSecondsLeft() {return (frameCount * MILLISECONDS_PER_FRAME/2) / 1000;}
     public double getSecondsLeftDouble(){return (double) Math.round(getSecondsLeft() * 100) /100;}
     public Tower getDragTower(){return this.dragTower;}
@@ -357,4 +480,9 @@ public class GameMaster {
     public Player getPlayer(){return this.player;}
     public void setGameStatus(GameStatus gameStatus) {this.gameStatus = gameStatus;}
     public GameStatus getGameStatus() {return this.gameStatus;}
+    public boolean isMultiplayer() {return isMultiplayer;}
+    public int getPlayerId() {return playerId;}
+    public GameClient getGameClient() {return gameClient;}
+    public Tower getTowerToUpdate() {return towerToUpdate;}
+    public void clearTowerToUpdate() {this.towerToUpdate=null;}
 }

@@ -38,7 +38,7 @@ public class TowerRepository {
      * @see HashMap
      * @see Tower
      */
-    private HashMap<Byte,Tower> towers;
+    private HashMap<Integer,Tower> towers;
 
 
     /**
@@ -175,7 +175,7 @@ public class TowerRepository {
      * @param id - идентификтор башни
      * @return Tower - возвращает башню
      */
-    public Tower getTower(byte id) {
+    public Tower getTower(int id) {
         return towers.getOrDefault(id, null);
     }
 
@@ -192,7 +192,7 @@ public class TowerRepository {
      * @param id - идентификтор башни
      * @return boolean - возвращает удалена ли башня
      */
-    public boolean deleteTower(byte id) {
+    public boolean deleteTower(int id) {
         towers.remove(id);
         return getTower(id) == null;
     }

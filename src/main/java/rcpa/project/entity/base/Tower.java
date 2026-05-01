@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import static rcpa.project.config.Configuration.CELL_WIDTH;
 
 public class Tower<T extends Attack> extends JComponent implements Cloneable {
-    private byte id;
+    private int id;
     private byte animationStatus=0;
     private double damage;
     private double radius;
@@ -21,6 +21,7 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
     private int cost;
     private int x;
     private int y;
+    private int level;
     private boolean canAttack = false;
     private boolean isAnimation = false;
     private boolean isInSlot = true;
@@ -114,7 +115,7 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
 
     public void setAnimation(boolean animation) {isAnimation = animation;}
 
-    public byte getId() {
+    public int getId() {
         return id;
     }
 
@@ -229,4 +230,7 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
     public void setAttack(T attack) {
         this.attack = attack;
     }
+
+    public int getLevel() {return level;}
+    public void setLevel(int level) {this.level = level;}
 }
