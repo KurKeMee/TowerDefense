@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.Map;
 
 public class GameClient {
     private Socket socket;
@@ -130,24 +131,10 @@ public class GameClient {
         }
     }
 
-    public void createRoom(String roomName) {
-        Message message = new Message(Message.Type.CREATE_ROOM);
-        message.putData("roomName", roomName);
+    public void sendRequest(Message.Type type, Map<String, Object> data) {
+        Message message = new Message(type);
+        if(data!=null) data.forEach(message::putData);
         sendMessage(message);
-    }
-
-    public void joinRoom(String roomId) {
-        Message message = new Message(Message.Type.JOIN_ROOM);
-        message.putData("roomId", roomId);
-        sendMessage(message);
-    }
-
-    public void leaveRoom() {
-        sendMessage(new Message(Message.Type.LEAVE_ROOM));
-    }
-
-    public void startGame() {
-        sendMessage(new Message(Message.Type.START_GAME));
     }
 
     public void setReady(){

@@ -1,6 +1,7 @@
 package rcpa.project.entity.base;
 
 import rcpa.project.repository.EnemyRepository;
+import rcpa.project.repository.TowerRepository;
 import rcpa.project.service.GameMaster;
 import rcpa.project.util.MapUtils;
 
@@ -22,6 +23,7 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
     private int x;
     private int y;
     private int level;
+    private int playerId;
     private boolean canAttack = false;
     private boolean isAnimation = false;
     private boolean isInSlot = true;
@@ -32,7 +34,7 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
     private ArrayList<BufferedImage> animation;
     private String name;
 
-    public Tower(byte id,
+    public Tower(int id,
                  int cost,
                  double damage,
                  double radius,
@@ -62,14 +64,16 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
     @Override
     public Object clone() throws CloneNotSupportedException {
         Tower clone = (Tower) super.clone();
-        clone.id = GameMaster.getGameMaster().getPlayer().getTowerRepository().getFreeId();
         return clone;
     }
 
-    public boolean canAttack(){
-        if(canAttack && this.target!=null){
-            canAttack = false;
-            return true;
+    public boolean canAttack() {
+        if (canAttack && this.target != null) {
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastAttackTime >= attackCooldown * 1000) {
+                canAttack = false;
+                return true;
+            }
         }
         return false;
     }
@@ -109,128 +113,98 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
         return getImage();
     }
 
-    public boolean getIsAnimation(){
-        return isAnimation;
-    }
-
-    public void setAnimation(boolean animation) {isAnimation = animation;}
-
-    public int getId() {
-        return id;
-    }
-
-    public double getDamage() {
-        return damage;
-    }
-
-    public Enemy getTarget() {
-        return target;
-    }
-
-    public boolean isCanAttack(){
-        return canAttack;
-    }
-
-    public void setCanAttack(){
-        canAttack=true;
-    }
-
-
-    public void setDamage(double damage) {
-        if (damage >= 0) this.damage = damage;
-    }
-
-    public double getRadius() {
-        return radius;
-    }
-
-    public void setRadius(double radius) {
-        if(radius > 0) this.radius = radius;
-    }
-
-    public double getAttackCooldown() {
-        return attackCooldown;
-    }
-
-    public void setAttackCooldown(double attackCooldown) {
-        if(attackCooldown >0) this.attackCooldown = attackCooldown;
-    }
-
-    public BufferedImage getImage() {
-        return image;
-    }
-
-    public void setImage(BufferedImage image) {
-        this.image = image;
-    }
-
-    public ArrayList<BufferedImage> getAnimation() {
-        return animation;
-    }
-
-    public void setAnimation(ArrayList<BufferedImage> animation) {
-        this.animation = animation;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        if(!name.trim().isEmpty())this.name = name;
-    }
-
-
-    public int getX() {
-        return x;
-    }
-
-    public void setX(int x) {
-        this.x = x;
-    }
-
-    public int getY() {
-        return y;
-    }
-
-    public void setY(int y) {
-        this.y = y;
-    }
-
-    public double getLastAttackTime() {
-        return lastAttackTime;
-    }
-
-    public void setLastAttackTime(double lastAttackTime) {
-        this.lastAttackTime = lastAttackTime;
-    }
-
-    public boolean isInSlot() {
-        return this.isInSlot;
-    }
-
     public void setInSlot(boolean isInSlot) {
         this.isInSlot = isInSlot;
         this.canAttack = !isInSlot;
     }
 
-
+    public boolean getIsAnimation(){return isAnimation;}
+    public void setAnimation(boolean animation) {isAnimation = animation;}
+    public int getId() {
+        return id;
+    }
+    public void setId(int id) {
+        this.id=id;
+    }
+    public double getDamage() {
+        return damage;
+    }
+    public Enemy getTarget() {
+        return target;
+    }
+    public void setTarget(Enemy target) {this.target=target;}
+    public boolean isCanAttack(){return canAttack;}
+    public void setCanAttack(){
+        canAttack=true;
+    }
+    public void setDamage(double damage) {
+        if (damage >= 0) this.damage = damage;
+    }
+    public double getRadius() {
+        return radius;
+    }
+    public void setRadius(double radius) {
+        if(radius > 0) this.radius = radius;
+    }
+    public double getAttackCooldown() {
+        return attackCooldown;
+    }
+    public void setAttackCooldown(double attackCooldown) {
+        if(attackCooldown >0) this.attackCooldown = attackCooldown;
+    }
+    public BufferedImage getImage() {
+        return image;
+    }
+    public void setImage(BufferedImage image) {
+        this.image = image;
+    }
+    public ArrayList<BufferedImage> getAnimation() {
+        return animation;
+    }
+    public void setAnimation(ArrayList<BufferedImage> animation) {
+        this.animation = animation;
+    }
+    public String getName() {
+        return name;
+    }
+    public void setName(String name) {
+        if(!name.trim().isEmpty())this.name = name;
+    }
+    public int getX() {
+        return x;
+    }
+    public void setX(int x) {
+        this.x = x;
+    }
+    public int getY() {
+        return y;
+    }
+    public void setY(int y) {
+        this.y = y;
+    }
+    public double getLastAttackTime() {
+        return lastAttackTime;
+    }
+    public void setLastAttackTime(double lastAttackTime) {
+        this.lastAttackTime = lastAttackTime;
+    }
+    public boolean isInSlot() {
+        return this.isInSlot;
+    }
     public boolean isCanOccupe() {
         return canOccupe;
     }
-
     public void setCanOccupe(boolean canOccupe) {
         this.canOccupe = canOccupe;
     }
-
     public T getAttack() {
         return attack;
     }
-
     public void setAttack(T attack) {
         this.attack = attack;
     }
-
     public int getLevel() {return level;}
     public void setLevel(int level) {this.level = level;}
+    public int getPlayerId() {return playerId;}
+    public void setPlayerId(int playerId) {this.playerId = playerId;}
 }

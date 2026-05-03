@@ -14,7 +14,7 @@ public class SummonAttack extends Attack {
     }
 
     @Override
-    public boolean move(Graphics g) {
+    public boolean move() {
         return false;
     }
 

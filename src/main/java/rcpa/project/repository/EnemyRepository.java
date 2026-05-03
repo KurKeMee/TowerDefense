@@ -34,7 +34,7 @@ public class EnemyRepository {
      * @see HashMap
      * @see Enemy
      */
-    private HashMap<Byte,Enemy> enemies;
+    private HashMap<Integer,Enemy> enemies;
     private ArrayList<Enemy> enemiesMarket = new ArrayList<>();
     private byte lastId;
     private ArrayList<Cell> path;
@@ -100,7 +100,7 @@ public class EnemyRepository {
      * @param id - идентификтор врага
      * @return Enemy - возвращает врага
      */
-    public Enemy getEnemy(byte id) {
+    public Enemy getEnemy(int id) {
         return enemies.getOrDefault(id, null);
     }
 
@@ -117,7 +117,7 @@ public class EnemyRepository {
      * @param id - идентификтор врага
      * @return boolean - возвращает удален ли враг
      */
-    public boolean deleteEnemy(byte id) {
+    public boolean deleteEnemy(int id) {
         enemies.remove(id);
         return getEnemy(id) == null;
     }

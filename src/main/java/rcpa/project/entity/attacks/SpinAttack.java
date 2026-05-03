@@ -37,8 +37,7 @@ public class SpinAttack extends Attack implements Cloneable {
     }
 
     @Override
-    public boolean move(Graphics g){
-        this.render(g);
+    public boolean move(){
         timeSpent++;
         if(timeSpent < spinDuration*30){
             if(timeSpent%2==0) {
@@ -49,7 +48,7 @@ public class SpinAttack extends Attack implements Cloneable {
             return true;
         }
         else{
-            ownTower.setLastAttackTime(GameMaster.getGameMaster().getSecondsLeftDouble());
+            ownTower.setLastAttackTime(System.currentTimeMillis());
             return false;
         }
     }
@@ -57,13 +56,12 @@ public class SpinAttack extends Attack implements Cloneable {
     @Override
     public void attack() {
         EnemyRepository.getEnemyRepository().getEnemies().stream().filter(enemy -> {
-            double distance = Math.sqrt(Math.pow((enemy.getX()+(double)CELL_WIDTH/2)-(this.getX()+CELL_WIDTH/2),2)
-                    +Math.pow((enemy.getY()+ (double) CELL_WIDTH /2) -
-                                            (this.getY()+CELL_WIDTH/2),2));
-            return distance<=radius;
+            double distance = Math.sqrt(Math.pow((enemy.getX() + (double) CELL_WIDTH / 2) - (this.getX() + CELL_WIDTH / 2), 2)
+                    + Math.pow((enemy.getY() + (double) CELL_WIDTH / 2) -
+                    (this.getY() + CELL_WIDTH / 2), 2));
+            return distance <= radius;
         }).forEach(enemy -> {
             enemy.takeDamage(this.getDamage());
-            if (enemy.getHealth() == 0) EnemyRepository.getEnemyRepository().deleteEnemy(enemy.getId());
         });
     }
 

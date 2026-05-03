@@ -1,9 +1,9 @@
 package rcpa.project.view;
 
 import rcpa.project.entity.base.Tower;
-import rcpa.project.model.GameState;
-import rcpa.project.network.NetworkUtils;
+import rcpa.project.model.Message;
 import rcpa.project.repository.CellRepository;
+import rcpa.project.repository.TowerRepository;
 import rcpa.project.service.GameMaster;
 import rcpa.project.util.MapUtils;
 
@@ -13,6 +13,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
+import java.util.Map;
 
 import static rcpa.project.config.Configuration.*;
 
@@ -43,6 +44,8 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
     private JFrame frame;
 
     private JPanel glassPane;
+
+    private boolean isMultiplayerGame = false;
 
     /**
      * Конструктор с инициализацией элементов на панели
@@ -127,39 +130,6 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
         butLevels.setBounds(100,400,384,96);
         butExit.setBounds(100,600,384,96);
 
-        JButton butHost = new JButton("Создать игру");
-        butHost.setBounds(100, 500, 384, 48);
-        butHost.addActionListener(_ -> {
-            String roomName = gameMaster.createMultiplayerRoom();
-            if (roomName != null) {
-                JOptionPane.showMessageDialog(frame,
-                        "Игра создана!\nНазвание: " + roomName +
-                                "\n\nВторой игрок должен ввести это название");
-            }
-        });
-        this.add(butHost);
-
-        JButton butJoin = new JButton("Присоединиться");
-        butJoin.setBounds(100, 560, 384, 48);
-        butJoin.addActionListener(_ -> {
-            String roomName = JOptionPane.showInputDialog(frame, "Введите название комнаты:");
-            if (roomName != null && !roomName.isEmpty()) {
-                if (gameMaster.connectToServer("127.0.0.1", 8080)) {
-                    gameMaster.getGameClient().joinRoom(roomName);
-                }
-            }
-        });
-        this.add(butJoin);
-        JButton butStartGame = new JButton("Начать игру");
-        butStartGame.setBounds(100, 460, 384, 48);
-        butStartGame.addActionListener(_ -> {
-            if (gameMaster.getGameClient() != null) {
-                gameMaster.getGameClient().startGame();
-                System.out.println("Запрос на старт игры отправлен");
-            }
-        });
-        this.add(butStartGame);
-
         butLevels.addActionListener(_ -> gameMaster.setGameStatus(GameStatus.MAIN_MENU_LEVEL));
 
         butExit.addActionListener(_ -> System.exit(0));
@@ -167,14 +137,72 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
 
         this.add(butLevels);
         this.add(butExit);
+
+        JButton butSinglePlayer = new JButton("Одиночная игра");
+        butSinglePlayer.setBounds(100, 300, 384, 48);
+        butSinglePlayer.addActionListener(_ -> {
+            isMultiplayerGame = false;
+            gameMaster.setGameStatus(GameStatus.MAIN_MENU_LEVEL);
+        });
+        this.add(butSinglePlayer);
+
+        JButton butHost = new JButton("Создать игру");
+        butHost.setBounds(100, 200, 384, 48);
+        butHost.addActionListener(_ -> {
+            // Запускаем сервер локально
+            gameMaster.startServer();
+
+            // Подключаемся к своему серверу
+            if (gameMaster.connectToServer("127.0.0.1", 8080)) {
+                String roomName = gameMaster.createMultiplayerRoom();
+                if (roomName != null) {
+                    isMultiplayerGame = true;
+                    JOptionPane.showMessageDialog(frame,
+                            "Игра создана!\nНазвание комнаты: " + roomName +
+                                    "\n\nОжидание второго игрока...");
+                }
+            }
+        });
+        this.add(butHost);
+
+        JButton butJoin = new JButton("Присоединиться");
+        butJoin.setBounds(100, 260, 384, 48);
+        butJoin.addActionListener(_ -> {
+            String serverIP = JOptionPane.showInputDialog(frame,
+                    "Введите IP сервера:", "127.0.0.1");
+            if (serverIP != null && !serverIP.isEmpty()) {
+                if (gameMaster.connectToServer(serverIP, 8080)) {
+                    String roomId = JOptionPane.showInputDialog(frame,
+                            "Введите ID комнаты:");
+                    if (roomId != null && !roomId.isEmpty()) {
+                        gameMaster.getGameClient().sendRequest(
+                                Message.Type.JOIN_ROOM,
+                                Map.of("roomId", roomId)
+                        );
+                        isMultiplayerGame = true;
+                    }
+                }
+            }
+        });
+        this.add(butJoin);
+
+        JButton butStartGame = new JButton("Начать игру");
+        butStartGame.setBounds(100, 320, 384, 48);
+        butStartGame.addActionListener(_ -> {
+            if (gameMaster.getGameClient() != null && gameMaster.isMultiplayer()) {
+                gameMaster.getGameClient().sendRequest(Message.Type.START_GAME, null);
+                System.out.println("Запрос на старт игры отправлен");
+            }
+        });
+        this.add(butStartGame);
     }
 
     public void levelLoad(){
         resetComponents(frame);
-
         drawMap();
         this.setBounds(0, 0, this.mapUtils.getWidth(), this.mapUtils.getHeight());
         setLayout(null);
+
         gameMaster.getPlayer().getSlotRepository().getSlots().forEach(slot -> {
             slot.setBounds(
                     MapUtils.getMapUtils().getWidth() - TOWER_SLOT_RESIZING,
@@ -185,9 +213,10 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
             this.add(slot);
         });
 
-        CellRepository.getCellRepository().getCells().forEach(cell ->{
-            cell.setBounds(cell.getXCord()*CELL_WIDTH,cell.getYCord()*CELL_WIDTH,CELL_WIDTH,CELL_WIDTH);
-            //this.setComponentZOrder(cell,0);
+        CellRepository.getCellRepository().getCells().forEach(cell -> {
+            cell.setBounds(cell.getXCord() * CELL_WIDTH,
+                    cell.getYCord() * CELL_WIDTH,
+                    CELL_WIDTH, CELL_WIDTH);
             this.add(cell);
         });
 
@@ -238,9 +267,11 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
      */
     @Override
     public void actionPerformed(ActionEvent e) {
-        if(currentGameStatus!=gameMaster.getGameStatus()){
-            currentGameStatus = gameMaster.getGameStatus();
-            switch(currentGameStatus){
+        GameStatus newStatus = gameMaster.getGameStatus();
+        if (currentGameStatus != newStatus) {
+            currentGameStatus = newStatus;
+
+            switch (currentGameStatus) {
                 case WAVE_STARTING:
                 case LEVEL_ENTER:
                     frame.setIconImage(null);
@@ -250,14 +281,17 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
                     break;
             }
         }
-        if(gameMaster.getTowerToUpdate()!=null &&
-                (currentGameStatus==GameStatus.WAVE_STARTING ||
-                currentGameStatus==GameStatus.WAVE_STARTED ||
-                currentGameStatus==GameStatus.WAVE_END)){
-            this.add(gameMaster.getTowerToUpdate());
-            gameMaster.getPlayer().getTowerRepository().addNewTower(gameMaster.getTowerToUpdate());
+
+        if (gameMaster.getTowerToUpdate() != null &&
+                (currentGameStatus == GameStatus.WAVE_STARTING ||
+                        currentGameStatus == GameStatus.WAVE_STARTED ||
+                        currentGameStatus == GameStatus.WAVE_END)) {
+            Tower tower = gameMaster.getTowerToUpdate();
+            this.add(tower);
+            TowerRepository.getTowerRepository().addNewTower(tower);
             gameMaster.clearTowerToUpdate();
         }
+
         repaint();
     }
 
@@ -283,23 +317,31 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
     @Override
     public void mouseReleased(MouseEvent e) {
         Tower newTower = gameMaster.getDragTower();
-        if(newTower != null) {
-            if(newTower.isCanOccupe()){
-                newTower.setBounds(newTower.getX(),newTower.getY(),newTower.getWidth(),newTower.getHeight());
-                this.add(newTower);
-                gameMaster.getPlayer().getTowerRepository().addNewTower(newTower);
-                CellRepository.getCellRepository().getCell(newTower.getX()/CELL_WIDTH,newTower.getY()/CELL_WIDTH).occupeCell();
+        if (newTower != null) {
+            if (newTower.isCanOccupe()) {
+                final Tower towerToPlace = newTower;
+                // Process tower placement asynchronously
+                SwingUtilities.invokeLater(() -> {
+                    towerToPlace.setBounds(towerToPlace.getX(), towerToPlace.getY(),
+                            towerToPlace.getWidth(), towerToPlace.getHeight());
+                    this.add(towerToPlace);
+                    TowerRepository.getTowerRepository().addNewTower(towerToPlace);
+                    CellRepository.getCellRepository()
+                            .getCell(towerToPlace.getX() / CELL_WIDTH,
+                                    towerToPlace.getY() / CELL_WIDTH)
+                            .occupeCell();
 
-                if (gameMaster.isMultiplayer()) {
-                    gameMaster.sendTowerPlaced(newTower);
-                }
+                    if (gameMaster.isMultiplayer()) {
+                        gameMaster.sendTowerPlaced(towerToPlace);
+                    }
 
+                    this.revalidate();
+                    this.repaint();
+                });
             }
             gameMaster.setIsDragTower(false);
             gameMaster.setDragTower(null);
         }
-        this.revalidate();
-        this.repaint();
     }
 
     @Override

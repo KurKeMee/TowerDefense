@@ -44,11 +44,10 @@ public abstract class Attack implements Cloneable {
         return clone;
     }
 
-    public abstract boolean move(Graphics g);
+    public abstract boolean move();
 
     public void attack(){
         this.getTarget().takeDamage(getDamage());
-        if(this.getTarget().getHealth()==0) EnemyRepository.getEnemyRepository().deleteEnemy(this.getTarget().getId());
     }
 
     public void render(Graphics g) {

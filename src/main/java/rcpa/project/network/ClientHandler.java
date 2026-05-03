@@ -156,7 +156,7 @@ public class ClientHandler implements Runnable {
 
     private void handleGameState(GameState gameState){
         if(currentRoom != null){
-            currentRoom.broadcastGameState(gameState, clientId);
+            currentRoom.broadcastGameState(gameState);
         }
     }
 

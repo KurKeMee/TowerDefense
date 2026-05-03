@@ -19,9 +19,8 @@ public class MeleeAttack extends Attack  implements Cloneable{
     }
 
     @Override
-    public boolean move(Graphics g) {
+    public boolean move() {
         ticks++;
-        super.render(g);
         if (getTarget() == null) {
             return false;
         }

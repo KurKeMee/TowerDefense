@@ -1,8 +1,6 @@
 package rcpa.project.model;
 
 import rcpa.project.entity.base.AttackType;
-import rcpa.project.entity.base.Enemy;
-import rcpa.project.entity.base.Player;
 import rcpa.project.entity.base.Tower;
 
 import java.io.Serializable;
@@ -14,16 +12,18 @@ import java.util.Map;
 public class GameState implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    public enum UpdateType{
-        FULL_STATE,        // Полное состояние (при подключении)
-        DELTA_UPDATE,      // Только изменения
-        ENEMY_SPAWN,       // Новый враг
-        ENEMY_DEATH,       // Враг умер
-        TOWER_PLACED,      // Башня поставлена
-        TOWER_REMOVED,     // Башня убрана
-        TOWER_UPGRADED,    // Башня улучшена
-        ATTACK_CREATED,    // Новая атака
-        PLAYER_STATS       // Обновление статистики игрока
+    public enum UpdateType {
+        FULL_STATE,
+        DELTA_UPDATE,
+        ENEMY_SPAWN,
+        ENEMY_DEATH,
+        ENEMY_MOVED,
+        TOWER_PLACED,
+        TOWER_REMOVED,
+        TOWER_UPGRADED,
+        ATTACK_CREATED,
+        ATTACK_MOVED,
+        PLAYER_STATS
     }
 
     private UpdateType updateType;
@@ -31,18 +31,21 @@ public class GameState implements Serializable {
     private long timestamp;
 
     private Map<Integer, PlayerData> players;
-
     private List<EnemyData> newEnemies;
     private List<Integer> deadEnemies;
+    private List<EnemyMoveData> enemyMoves;
     private List<TowerData> towersChanged;
     private List<AttackData> newAttacks;
+    private List<AttackMoveData> attackMoves;
 
     public GameState() {
         this.players = new HashMap<>();
         this.newEnemies = new ArrayList<>();
         this.deadEnemies = new ArrayList<>();
+        this.enemyMoves = new ArrayList<>();
         this.towersChanged = new ArrayList<>();
         this.newAttacks = new ArrayList<>();
+        this.attackMoves = new ArrayList<>();
         this.timestamp = System.currentTimeMillis();
     }
 
@@ -65,32 +68,27 @@ public class GameState implements Serializable {
     public static class EnemyData implements Serializable {
         private static final long serialVersionUID = 1L;
 
+        public int enemyMarketId;
         public int enemyId;
-        public float x,y;
-        public double health;
-        public double maxHealth;
-        public int pathIndex;
+        public int x, y;
 
-        public EnemyData(Enemy enemy) {
-            this.enemyId = enemy.getId();
-            this.x = enemy.getX();
-            this.y = enemy.getY();
-            this.health = enemy.getHealth();
-            this.maxHealth = enemy.getMaxHealth();
-            this.pathIndex = enemy.getCurrentPosition().getXCord();
+        public EnemyData(int marketId, int enemyId, int x, int y) {
+            this.enemyMarketId = marketId;
+            this.enemyId = enemyId;
+            this.x = x;
+            this.y = y;
         }
     }
 
     public static class TowerData implements Serializable {
         private static final long serialVersionUID = 1L;
 
-        public enum Action{
-            PLACED,REMOVED,UPGRADED
-        }
+        public enum Action { PLACED, REMOVED, UPGRADED }
 
         public int playerId;
-        public int towerId;
-        public int x,y;
+        public int towerId;    // serverTowerId (уникальный)
+        public int marketId;   // ДОБАВЛЕНО: оригинальный ID из market
+        public int x, y;
         public int level;
         public Action action;
 
@@ -128,6 +126,43 @@ public class GameState implements Serializable {
         }
     }
 
+    public static class EnemyMoveData implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        public int enemyId;
+        public int x, y;
+        public double health;
+        public int lookOrientation;
+
+        public EnemyMoveData(int enemyId, int x, int y, double health, int lookOrientation) {
+            this.enemyId = enemyId;
+            this.x = x;
+            this.y = y;
+            this.health = health;
+            this.lookOrientation = lookOrientation;
+        }
+    }
+
+    public static class AttackMoveData implements Serializable {
+        private static final long serialVersionUID = 1L;
+
+        public int attackId;
+        public int x, y;
+        public boolean completed;
+
+        public AttackMoveData(int attackId, int x, int y, boolean completed) {
+            this.attackId = attackId;
+            this.x = x;
+            this.y = y;
+            this.completed = completed;
+        }
+    }
+
+    public List<EnemyMoveData> getEnemyMoves() { return enemyMoves; }
+    public void setEnemyMoves(List<EnemyMoveData> enemyMoves) { this.enemyMoves = enemyMoves; }
+    public List<AttackMoveData> getAttackMoves() { return attackMoves; }
+    public void setAttackMoves(List<AttackMoveData> attackMoves) { this.attackMoves = attackMoves; }
+
     public UpdateType getUpdateType() { return updateType; }
     public void setUpdateType(UpdateType updateType) { this.updateType = updateType; }
 
@@ -153,6 +188,9 @@ public class GameState implements Serializable {
     public void setNewAttacks(List<AttackData> newAttacks) { this.newAttacks = newAttacks; }
 
     public boolean isEmpty() {
+        if (enemyMoves != null && !enemyMoves.isEmpty()) return false;
+        if (attackMoves != null && !attackMoves.isEmpty()) return false;
+
         return newEnemies.isEmpty() && deadEnemies.isEmpty() &&
                 towersChanged.isEmpty() && newAttacks.isEmpty();
     }

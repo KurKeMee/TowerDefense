@@ -44,16 +44,23 @@ public class TowerRepository {
     /**
      * Массив со всеми башнями
      */
-    private ArrayList<Tower> towerMarket = new ArrayList<>();
+    private static ArrayList<Tower> towerMarket = new ArrayList<>();
 
 
     /**
      * Конструктор класса TowerRepository
      *
      */
-    public TowerRepository() {
+    private TowerRepository() {
         towers = new HashMap<>();
         init();
+    }
+
+    public static TowerRepository getTowerRepository() {
+        if (instance == null) {
+            instance = new TowerRepository();
+        }
+        return instance;
     }
 
     /**
@@ -88,7 +95,7 @@ public class TowerRepository {
                             ImageIO.read(new File(CACTUS_TOWER_A3))));
 
 
-            this.towerMarket.addAll(Arrays.asList(new Tower(getFreeId(),
+            towerMarket.addAll(Arrays.asList(new Tower(0,
                                                             200,
                                                             5,
                                                             3 * CELL_WIDTH,
@@ -104,7 +111,7 @@ public class TowerRepository {
                                                             towerAnimationLaser.getFirst(),
                                                             towerAnimationLaser,
                                                             "Spiky Bee"),
-                                                    new Tower(getFreeId(),
+                                                    new Tower(1,
                                                             200,
                                                             10,
                                                             3 * CELL_WIDTH,
@@ -117,7 +124,7 @@ public class TowerRepository {
                                                             towerAnimationSkeletonKing.getFirst(),
                                                             towerAnimationSkeletonKing,
                                                             "Skeleton King Tower"),
-                                                    new Tower(getFreeId(),
+                                                    new Tower(2,
                                                             200,
                                                             3, //TODO Добавить определение пересечения плоскостей
                                                             1.5 * CELL_WIDTH,
@@ -130,7 +137,7 @@ public class TowerRepository {
                                                             towerAnimationSaber.getFirst(),
                                                             towerAnimationSaber,
                                                             "Melee bee"),
-                                                    new Tower(getFreeId(),
+                                                    new Tower(3,
                                                             200,
                                                             3,
                                                             3 * CELL_WIDTH,
@@ -143,7 +150,7 @@ public class TowerRepository {
                                                             towerAnimationTripleShooter.getFirst(),
                                                             towerAnimationTripleShooter,
                                                             "TripleShooter Tower"),
-                                                    new Tower(getFreeId(),
+                                                    new Tower(4,
                                                             200,
                                                             0.2,
                                                             1.5 * CELL_WIDTH,
@@ -205,7 +212,7 @@ public class TowerRepository {
         return (byte) (towers.size());
     }
 
-    public ArrayList<Tower> getTowerMarket() {
+    public static ArrayList<Tower> getTowerMarket() {
         return towerMarket;
     }
 }

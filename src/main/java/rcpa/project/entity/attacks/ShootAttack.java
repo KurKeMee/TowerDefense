@@ -18,8 +18,7 @@ public class ShootAttack extends Attack implements Cloneable {
     }
 
     @Override
-    public boolean move(Graphics g){
-        super.render(g);
+    public boolean move(){
         if (getTarget() == null) {
             return false;
         }

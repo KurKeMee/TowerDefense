@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import static rcpa.project.config.Configuration.CELL_WIDTH;
 
 public class Enemy implements Cloneable{
-    private byte id;
+    private int id;
     private byte animationStatus=0;
     private double health;
     private double maxHealth;
@@ -17,6 +17,7 @@ public class Enemy implements Cloneable{
     private int wayProgress = 0;
     private String name;
     private BufferedImage image;
+    private int lookOrientation;
     private int x;
     private int y;
     private Cell currentPosition;
@@ -47,7 +48,7 @@ public class Enemy implements Cloneable{
         return enemy;
     }
 
-    public int move(){
+    public void move(){
         if(this.currentPosition.cellEquals(this.targetPosition)){
             wayProgress++;
             this.targetPosition = getNextStep();
@@ -63,17 +64,14 @@ public class Enemy implements Cloneable{
             y=currentPosition.getYCord()*CELL_WIDTH;
         }
 
-        int imageType;
-
         if (Math.abs(orientation[0]) > Math.abs(orientation[1])) {
-            imageType = orientation[0] < 0 ? 1 : 3; // 1:влево, 3:вправо
+            lookOrientation = orientation[0] < 0 ? 1 : 3; // 1:влево, 3:вправо
         } else {
-            imageType = orientation[1] < 0 ? 2 : 0; // 2:вверх, 0:вниз
+            lookOrientation = orientation[1] < 0 ? 2 : 0; // 2:вверх, 0:вниз
         }
-        return imageType;
     }
 
-    public boolean playAnimation(int side){
+    public boolean playAnimation(){
         if(animationStatus!=animation.size()-1){
             animationStatus++;
             this.image = animation.get(animationStatus);
@@ -97,7 +95,7 @@ public class Enemy implements Cloneable{
         if(this.health<0.1) this.health = 0;
     }
 
-    public byte getId() {
+    public int getId() {
         return id;
     }
 
@@ -157,7 +155,9 @@ public class Enemy implements Cloneable{
     public int getX() {
         return x;
     }
-
+    public void setId(int id) {
+        this.id = id;
+    }
     public void setX(int x) {
         this.x = x;
     }
@@ -176,5 +176,13 @@ public class Enemy implements Cloneable{
 
     public void setMaxHealth(double maxHealth) {
         this.maxHealth = maxHealth;
+    }
+
+    public int getLookOrientation() {
+        return lookOrientation;
+    }
+
+    public void setLookOrientation(int lookOrientation) {
+        this.lookOrientation = lookOrientation;
     }
 }

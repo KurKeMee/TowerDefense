@@ -7,7 +7,7 @@ import java.io.IOException;
 
 public class Player {
     private String name;
-    private TowerRepository towerRepository; // TODO: сделать для каждого свой
+    private TowerRepository towerRepository;
     private SlotRepository slotRepository;
     private Slot grabbedSlot=null;
     private int money;
