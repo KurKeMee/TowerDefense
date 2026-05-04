@@ -75,7 +75,88 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
         frame.setSize(1024,800);
         frame.setLocationRelativeTo(null);
 
-        JButton butLevels = new JButton(LEVEL_BUTTON_TEXT_RU){
+        JButton butStartGame = new JButton("Начать игру"){
+            @Override
+            protected void paintComponent(Graphics g) {
+                // Рисуем фон
+                try {
+                    Image bg = ImageIO.read(new File(EXIT_BUTTON_IMAGE));
+                    g.drawImage(bg, 0, 0, getWidth(), getHeight(), this);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                // Рисуем текст по центру
+                g.setColor(Color.orange);
+                g.setFont(new Font("Gabriola", Font.BOLD, 46));
+                FontMetrics fm = g.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(getText())) / 2;
+                int y = (getHeight() - fm.getHeight()) + fm.getAscent();
+                g.drawString(getText(), x, y+10);
+            }
+        };
+        butStartGame.addActionListener(_ -> {
+            if (gameMaster.getGameClient() != null && gameMaster.isMultiplayer()) {
+                gameMaster.getGameClient().sendRequest(Message.Type.START_GAME, null);
+                System.out.println("Запрос на старт игры отправлен");
+            }
+        });
+        butStartGame.setContentAreaFilled(false);
+        butStartGame.setBorderPainted(false);
+        butStartGame.setFocusPainted(false);
+        butStartGame.setOpaque(false);
+
+        butStartGame.setIcon(new ImageIcon(EXIT_BUTTON_IMAGE));
+        butStartGame.setBounds(100,200,384,96);
+        this.add(butStartGame);
+
+        JButton butJoin = new JButton("Присоединиться"){
+            @Override
+            protected void paintComponent(Graphics g) {
+                // Рисуем фон
+                try {
+                    Image bg = ImageIO.read(new File(LEVELS_BUTTON_IMAGE));
+                    g.drawImage(bg, 0, 0, getWidth(), getHeight(), this);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                // Рисуем текст по центру
+                g.setColor(Color.orange);
+                g.setFont(new Font("Gabriola", Font.BOLD, 46));
+                FontMetrics fm = g.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(getText())) / 2;
+                int y = (getHeight() - fm.getHeight()) + fm.getAscent();
+                g.drawString(getText(), x, y+10);
+            }
+        };
+        butJoin.addActionListener(_ -> {
+            String serverIP = JOptionPane.showInputDialog(frame,
+                    "Введите IP сервера:", "127.0.0.1");
+            if (serverIP != null && !serverIP.isEmpty()) {
+                if (gameMaster.connectToServer(serverIP, 8080)) {
+                    String roomId = JOptionPane.showInputDialog(frame,
+                            "Введите ID комнаты:");
+                    if (roomId != null && !roomId.isEmpty()) {
+                        gameMaster.getGameClient().sendRequest(
+                                Message.Type.JOIN_ROOM,
+                                Map.of("roomId", roomId)
+                        );
+                        isMultiplayerGame = true;
+                    }
+                }
+            }
+        });
+        butJoin.setContentAreaFilled(false);
+        butJoin.setBorderPainted(false);
+        butJoin.setFocusPainted(false);
+        butJoin.setOpaque(false);
+
+        butJoin.setIcon(new ImageIcon(EXIT_BUTTON_IMAGE));
+        butJoin.setBounds(100,315,384,96);
+        this.add(butJoin);
+
+        JButton butHost = new JButton("Создать игру"){
             @Override
             protected void paintComponent(Graphics g) {
                 try {
@@ -93,6 +174,27 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
                 g.drawString(getText(), x, y+12);
             }
         };
+
+        butHost.setIcon(new ImageIcon(LEVELS_BUTTON_IMAGE));
+
+        butHost.setContentAreaFilled(false);
+        butHost.setBorderPainted(false);
+        butHost.setFocusPainted(false);
+        butHost.setOpaque(false);
+
+        butHost.setBounds(100,430,384,96);
+        butHost.addActionListener(_ -> {
+            gameMaster.startServer();
+
+            if (gameMaster.connectToServer("127.0.0.1", 8080)) {
+                String roomName = gameMaster.createMultiplayerRoom();
+                if (roomName != null) {
+                    isMultiplayerGame = true;
+                }
+            }
+        });
+        this.add(butHost);
+
         JButton butExit = new JButton(EXIT_BUTTON_TEXT_RU){
             @Override
             protected void paintComponent(Graphics g) {
@@ -114,87 +216,17 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
             }
         };
 
-        butLevels.setContentAreaFilled(false);  // Убираем фон
-        butLevels.setBorderPainted(false);      // Убираем границы
-        butLevels.setFocusPainted(false);       // Убираем рамку фокуса
-        butLevels.setOpaque(false);             // Делаем кнопку прозрачной
-
         butExit.setContentAreaFilled(false);
         butExit.setBorderPainted(false);
         butExit.setFocusPainted(false);
         butExit.setOpaque(false);
 
-        butLevels.setIcon(new ImageIcon(LEVELS_BUTTON_IMAGE));
         butExit.setIcon(new ImageIcon(EXIT_BUTTON_IMAGE));
-
-        butLevels.setBounds(100,400,384,96);
         butExit.setBounds(100,600,384,96);
-
-        butLevels.addActionListener(_ -> gameMaster.setGameStatus(GameStatus.MAIN_MENU_LEVEL));
-
         butExit.addActionListener(_ -> System.exit(0));
 
 
-        this.add(butLevels);
         this.add(butExit);
-
-        JButton butSinglePlayer = new JButton("Одиночная игра");
-        butSinglePlayer.setBounds(100, 300, 384, 48);
-        butSinglePlayer.addActionListener(_ -> {
-            isMultiplayerGame = false;
-            gameMaster.setGameStatus(GameStatus.MAIN_MENU_LEVEL);
-        });
-        this.add(butSinglePlayer);
-
-        JButton butHost = new JButton("Создать игру");
-        butHost.setBounds(100, 200, 384, 48);
-        butHost.addActionListener(_ -> {
-            // Запускаем сервер локально
-            gameMaster.startServer();
-
-            // Подключаемся к своему серверу
-            if (gameMaster.connectToServer("127.0.0.1", 8080)) {
-                String roomName = gameMaster.createMultiplayerRoom();
-                if (roomName != null) {
-                    isMultiplayerGame = true;
-                    JOptionPane.showMessageDialog(frame,
-                            "Игра создана!\nНазвание комнаты: " + roomName +
-                                    "\n\nОжидание второго игрока...");
-                }
-            }
-        });
-        this.add(butHost);
-
-        JButton butJoin = new JButton("Присоединиться");
-        butJoin.setBounds(100, 260, 384, 48);
-        butJoin.addActionListener(_ -> {
-            String serverIP = JOptionPane.showInputDialog(frame,
-                    "Введите IP сервера:", "127.0.0.1");
-            if (serverIP != null && !serverIP.isEmpty()) {
-                if (gameMaster.connectToServer(serverIP, 8080)) {
-                    String roomId = JOptionPane.showInputDialog(frame,
-                            "Введите ID комнаты:");
-                    if (roomId != null && !roomId.isEmpty()) {
-                        gameMaster.getGameClient().sendRequest(
-                                Message.Type.JOIN_ROOM,
-                                Map.of("roomId", roomId)
-                        );
-                        isMultiplayerGame = true;
-                    }
-                }
-            }
-        });
-        this.add(butJoin);
-
-        JButton butStartGame = new JButton("Начать игру");
-        butStartGame.setBounds(100, 320, 384, 48);
-        butStartGame.addActionListener(_ -> {
-            if (gameMaster.getGameClient() != null && gameMaster.isMultiplayer()) {
-                gameMaster.getGameClient().sendRequest(Message.Type.START_GAME, null);
-                System.out.println("Запрос на старт игры отправлен");
-            }
-        });
-        this.add(butStartGame);
     }
 
     public void levelLoad(){

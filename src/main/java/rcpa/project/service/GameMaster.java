@@ -40,6 +40,7 @@ public class GameMaster implements GameClient.ClientListener {
     private final AttackRepository attackRepository;
 
     private GameStatus gameStatus = MAIN_MENU;
+    private String roomId;
     private int frameCount = 0;
     private int animationLevelLoadingStatus = 0;
     private int waveLevel = 0;
@@ -74,7 +75,7 @@ public class GameMaster implements GameClient.ClientListener {
         }
 
         if (gameStatus == MAIN_MENU) {
-            // Главное меню
+            mainMenu(g);
         } else if (gameStatus == GameStatus.MAIN_MENU_LEVEL) {
             mainMenuLevelState(g);
         } else if (gameStatus == GameStatus.LEVEL_ENTER) {
@@ -85,6 +86,24 @@ public class GameMaster implements GameClient.ClientListener {
         } else if (gameStatus == GameStatus.WAVE_STARTED) {
             towersAttack(g);
             waveStarted(g);
+        }
+    }
+
+    private void mainMenu(Graphics g){
+        if(roomId!=null) {
+            g.setColor(Color.ORANGE);
+            g.setFont(new Font("Gabriola", Font.BOLD, 50));
+            FontMetrics fm = g.getFontMetrics();
+            try {
+                Image bg = ImageIO.read(new File(EXIT_BUTTON_IMAGE));
+                g.drawImage(bg, 750, 0, 80+fm.stringWidth(roomId), 96, null);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+
+            int y = (96 - fm.getHeight()) + fm.getAscent();
+            g.drawString(roomId, 790, y + 16);
         }
     }
 
@@ -298,10 +317,13 @@ public class GameMaster implements GameClient.ClientListener {
                 System.out.println("GameMaster: Началась волна " + waveLevel);
                 break;
 
+            case ROOM_CREATED:
+                roomId = (String) message.getData("roomId");
+                break;
+
             case ROOM_JOINED:
+                roomId = (String) message.getData("roomId");
                 System.out.println("Успешно подключились к комнате: " + message.getData("roomId"));
-                JOptionPane.showMessageDialog(null,
-                        "Подключены к комнате!\nОжидайте начала игры.");
                 break;
 
             case ERROR:
