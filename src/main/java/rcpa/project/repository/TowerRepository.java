@@ -154,12 +154,12 @@ public class TowerRepository {
                                                             200,
                                                             0.2,
                                                             1.5 * CELL_WIDTH,
-                                                            5,
+                                                            3,
                                                             new SpinAttack(
                                                                     AttackRepository.getAttackRepository().getFreeId(),
-                                                                    0.2,
+                                                                    0.6,
                                                                     ImageIO.read(new File(CACTUS_TOWER_ATTACK)),
-                                                                    0,0,null,   5, AttackType.SPIN_ATTACK,CELL_WIDTH*1.5),
+                                                                    0,0,null,   3, AttackType.SPIN_ATTACK,CELL_WIDTH*1.5),
                                                             towerAnimationCactus.getFirst(),
                                                             towerAnimationCactus,
                                                             "Spin Bee")));

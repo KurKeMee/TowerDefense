@@ -101,10 +101,7 @@ public class GameServer {
     }
 
     public void removeRoom(String roomId) {
-        GameRoom room = rooms.remove(roomId);
-        if (room != null) {
-            room.stopGameLoop();
-        }
+        rooms.remove(roomId);
     }
 
     public Map<Integer, ClientHandler> getClients() { return clients; }
@@ -115,9 +112,6 @@ public class GameServer {
         running = false;
         gameLoop.shutdown();
         threadPool.shutdown();
-
-        // Останавливаем все комнаты
-        rooms.values().forEach(GameRoom::stopGameLoop);
 
         clients.values().forEach(ClientHandler::disconnect);
 

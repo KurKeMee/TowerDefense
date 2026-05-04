@@ -80,8 +80,6 @@ public class Cell extends JComponent {
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                System.out.println("1");
-               Tower newTower = GameMaster.getGameMaster().getDragTower();
             }
         });
     }

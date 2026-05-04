@@ -17,6 +17,7 @@ public abstract class Attack implements Cloneable {
     private int y;
     private double angle;
     private double speed = 40;
+    private boolean completed = false;
     private AttackType attackType;
     private Enemy target;
     private BufferedImage image;
@@ -39,7 +40,7 @@ public abstract class Attack implements Cloneable {
             double dx = (target.getX() + CELL_WIDTH/2) - x;
             double dy = (target.getY() + CELL_WIDTH/2) - y;
             clone.angle = Math.atan2(dy, dx) + Math.PI / 2;
-            clone.image = MapUtils.rotateImage(clone.image, clone.angle);
+            clone.target = target;
         }
         return clone;
     }
@@ -115,5 +116,13 @@ public abstract class Attack implements Cloneable {
 
     public AttackType getAttackType() {
         return attackType;
+    }
+
+    public boolean isCompleted() {
+        return completed;
+    }
+
+    public void setCompleted(boolean completed) {
+        this.completed = completed;
     }
 }

@@ -14,6 +14,7 @@ import static rcpa.project.config.Configuration.CELL_WIDTH;
 
 public class Tower<T extends Attack> extends JComponent implements Cloneable {
     private int id;
+    private int marketId;
     private byte animationStatus=0;
     private double damage;
     private double radius;
@@ -34,7 +35,7 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
     private ArrayList<BufferedImage> animation;
     private String name;
 
-    public Tower(int id,
+    public Tower(int marketId,
                  int cost,
                  double damage,
                  double radius,
@@ -43,7 +44,7 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
                  BufferedImage image,
                  ArrayList<BufferedImage> animation,
                  String name) {
-        this.id = id;
+        this.marketId = marketId;
         this.cost = cost;
         this.damage = damage;
         this.radius = radius;
@@ -64,13 +65,14 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
     @Override
     public Object clone() throws CloneNotSupportedException {
         Tower clone = (Tower) super.clone();
+        clone.id = TowerRepository.getTowerRepository().getFreeId();
         return clone;
     }
 
     public boolean canAttack() {
         if (canAttack && this.target != null) {
             long currentTime = System.currentTimeMillis();
-            if (currentTime - lastAttackTime >= attackCooldown * 1000) {
+            if (currentTime - lastAttackTime >= attackCooldown*1000) {
                 canAttack = false;
                 return true;
             }
@@ -78,12 +80,14 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
         return false;
     }
 
-    public void findTarget(){
-        this.target = EnemyRepository.getEnemyRepository().getEnemies().stream().filter(enemy -> {
+    public void findTarget(ArrayList<Enemy> enemies){
+        this.target = enemies.stream().filter(enemy -> {
             double distance = Math.sqrt(Math.pow((enemy.getX()+(double)CELL_WIDTH/2)-(x+(double)CELL_WIDTH/2),2)
                     +Math.pow((enemy.getY()+ (double) CELL_WIDTH /2)-(y+(double)CELL_WIDTH/2),2));
             return distance<=radius;
         }).findFirst().orElse(null);
+
+        if(target!=null) attack.setTarget(target);
     }
 
     public boolean playAnimation(){
@@ -101,8 +105,8 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
         }
     }
 
-    public BufferedImage rotateTower(){
-        this.findTarget();
+    public BufferedImage rotateTower(ArrayList<Enemy> enemies){
+        this.findTarget(enemies);
 
         if(this.getTarget()!=null) {
             double dx = this.getTarget().getX()  - this.getX();
@@ -207,4 +211,12 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
     public void setLevel(int level) {this.level = level;}
     public int getPlayerId() {return playerId;}
     public void setPlayerId(int playerId) {this.playerId = playerId;}
+
+    public int getMarketId() {
+        return marketId;
+    }
+
+    public void setMarketId(int marketId) {
+        this.marketId = marketId;
+    }
 }

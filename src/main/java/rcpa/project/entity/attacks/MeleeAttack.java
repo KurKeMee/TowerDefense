@@ -22,7 +22,7 @@ public class MeleeAttack extends Attack  implements Cloneable{
     public boolean move() {
         ticks++;
         if (getTarget() == null) {
-            return false;
+            return true;
         }
         double dx = getTarget().getX()+ CELL_WIDTH/2 - getX();
         double dy = getTarget().getY()+ CELL_WIDTH/2 - getY();
@@ -31,13 +31,14 @@ public class MeleeAttack extends Attack  implements Cloneable{
 
         if (ticks>5) {
             attack();
-            return false; //Означает удалить атаку
+            setCompleted(true);
+            return true;
         } else {
             setX(getX() + (int) ((dx / distance)*20));
             setY(getY() + (int) ((dy / distance)*20));
         }
 
-        return true;
+        return false;
     }
 
     @Override

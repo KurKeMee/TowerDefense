@@ -319,29 +319,24 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
         Tower newTower = gameMaster.getDragTower();
         if (newTower != null) {
             if (newTower.isCanOccupe()) {
-                final Tower towerToPlace = newTower;
-                // Process tower placement asynchronously
-                SwingUtilities.invokeLater(() -> {
-                    towerToPlace.setBounds(towerToPlace.getX(), towerToPlace.getY(),
-                            towerToPlace.getWidth(), towerToPlace.getHeight());
-                    this.add(towerToPlace);
-                    TowerRepository.getTowerRepository().addNewTower(towerToPlace);
-                    CellRepository.getCellRepository()
-                            .getCell(towerToPlace.getX() / CELL_WIDTH,
-                                    towerToPlace.getY() / CELL_WIDTH)
-                            .occupeCell();
+                newTower.setBounds(newTower.getX(), newTower.getY(),
+                        newTower.getWidth(), newTower.getHeight());
+                this.add(newTower);
+                TowerRepository.getTowerRepository().addNewTower(newTower);
+                CellRepository.getCellRepository()
+                        .getCell(newTower.getX() / CELL_WIDTH,
+                                newTower.getY() / CELL_WIDTH)
+                        .occupeCell();
 
-                    if (gameMaster.isMultiplayer()) {
-                        gameMaster.sendTowerPlaced(towerToPlace);
-                    }
-
-                    this.revalidate();
-                    this.repaint();
-                });
+                if (gameMaster.isMultiplayer()) {
+                    gameMaster.sendTowerPlaced(newTower);
+                }
             }
             gameMaster.setIsDragTower(false);
             gameMaster.setDragTower(null);
         }
+        this.revalidate();
+        this.repaint();
     }
 
     @Override

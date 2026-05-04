@@ -14,7 +14,7 @@ public class GameState implements Serializable {
 
     public enum UpdateType {
         FULL_STATE,
-        DELTA_UPDATE,
+        FULL_UPDATE,
         ENEMY_SPAWN,
         ENEMY_DEATH,
         ENEMY_MOVED,
@@ -68,12 +68,12 @@ public class GameState implements Serializable {
     public static class EnemyData implements Serializable {
         private static final long serialVersionUID = 1L;
 
-        public int enemyMarketId;
+        public int marketId;
         public int enemyId;
         public int x, y;
 
         public EnemyData(int marketId, int enemyId, int x, int y) {
-            this.enemyMarketId = marketId;
+            this.marketId = marketId;
             this.enemyId = enemyId;
             this.x = x;
             this.y = y;
@@ -86,8 +86,8 @@ public class GameState implements Serializable {
         public enum Action { PLACED, REMOVED, UPGRADED }
 
         public int playerId;
-        public int towerId;    // serverTowerId (уникальный)
-        public int marketId;   // ДОБАВЛЕНО: оригинальный ID из market
+        public int towerId;
+        public int marketId;
         public int x, y;
         public int level;
         public Action action;
@@ -106,6 +106,7 @@ public class GameState implements Serializable {
         private static final long serialVersionUID = 1L;
 
         public int attackId;
+        public double angle;
         public int ownerId;
         public int targetId;
         public int x,y;
@@ -113,7 +114,8 @@ public class GameState implements Serializable {
         public AttackType attackType;
         public double damage;
 
-        public AttackData(int attackId, Tower tower){
+        public AttackData(int attackId, double angle, Tower tower){
+            this.angle = angle;
             this.attackId = attackId;
             this.ownerId = tower.getId();
             this.targetId = tower.getTarget().getId();
@@ -146,11 +148,19 @@ public class GameState implements Serializable {
     public static class AttackMoveData implements Serializable {
         private static final long serialVersionUID = 1L;
 
+        public int timeSpent;
         public int attackId;
         public int x, y;
         public boolean completed;
 
         public AttackMoveData(int attackId, int x, int y, boolean completed) {
+            this.attackId = attackId;
+            this.x = x;
+            this.y = y;
+            this.completed = completed;
+        }
+        public AttackMoveData(int timeSpent,int attackId, int x, int y, boolean completed) {
+            this.timeSpent = timeSpent;
             this.attackId = attackId;
             this.x = x;
             this.y = y;

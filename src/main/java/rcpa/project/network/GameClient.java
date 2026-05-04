@@ -137,10 +137,6 @@ public class GameClient {
         sendMessage(message);
     }
 
-    public void setReady(){
-        sendMessage(new Message(Message.Type.PLAYER_READY));
-    }
-
     public void placeTower(GameState.TowerData towerData){
         Message message = new Message(Message.Type.PLACE_TOWER);
         message.putData("towerData", towerData);

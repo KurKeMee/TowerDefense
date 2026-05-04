@@ -12,6 +12,7 @@ import rcpa.project.util.MapUtils;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.LinkedList;
 
 import static rcpa.project.config.Configuration.CELL_WIDTH;
@@ -22,6 +23,7 @@ public class SpinAttack extends Attack implements Cloneable {
     int timeSpent;
     double radius;
     Tower ownTower;
+    ArrayList<Enemy> enemies;
 
     public SpinAttack(int id, double damage, BufferedImage image, int x, int y, Enemy target, int spinDuration, AttackType attackType, double radius) {
         super(id, damage, image, x, y, target, attackType);
@@ -43,19 +45,22 @@ public class SpinAttack extends Attack implements Cloneable {
             if(timeSpent%2==0) {
                 ownTower.playAnimation();
                 ownTower.setAnimation(false);
-                if(timeSpent%10==0) attack();
+                if(timeSpent%10==0){
+                    attack();
+                    return true;
+                }
             }
-            return true;
         }
         else{
-            ownTower.setLastAttackTime(System.currentTimeMillis());
-            return false;
+            setCompleted(true);
         }
+        return false;
     }
 
     @Override
     public void attack() {
-        EnemyRepository.getEnemyRepository().getEnemies().stream().filter(enemy -> {
+        ownTower.setLastAttackTime(System.currentTimeMillis());
+        enemies.stream().filter(enemy -> {
             double distance = Math.sqrt(Math.pow((enemy.getX() + (double) CELL_WIDTH / 2) - (this.getX() + CELL_WIDTH / 2), 2)
                     + Math.pow((enemy.getY() + (double) CELL_WIDTH / 2) -
                     (this.getY() + CELL_WIDTH / 2), 2));
@@ -67,11 +72,11 @@ public class SpinAttack extends Attack implements Cloneable {
 
     @Override
     public void render(Graphics g) {
-        g.drawImage(getImage().getScaledInstance((int) (radius*((double) (timeSpent % 20+1) /20)*2),
-                                                (int) (radius*((double) (timeSpent % 20+1) /20)*2), Image.SCALE_AREA_AVERAGING),
-                                                (int)(ownTower.getX()+CELL_WIDTH/2-radius*((double) (timeSpent % 20+1) /20)),
-                                                (int)(ownTower.getY()+CELL_WIDTH/2-radius*((double) (timeSpent % 20+1) /20)),
-                                                null);
+
+        g.drawImage(MapUtils.rotateImage(getImage(),timeSpent%360).getScaledInstance((int) (radius*2), (int) (radius*2),Image.SCALE_DEFAULT),
+                (int)(ownTower.getX()+CELL_WIDTH/2-radius),
+                (int)(ownTower.getY()+CELL_WIDTH/2-radius),
+                null);
     }
 
     public Tower getOwnTower() {
@@ -80,5 +85,16 @@ public class SpinAttack extends Attack implements Cloneable {
 
     public void setOwnTower(Tower ownTower) {
         this.ownTower = ownTower;
+    }
+    public int getTimeSpent() {
+        return timeSpent;
+    }
+
+    public void setTimeSpent(int timeSpent) {
+        this.timeSpent = timeSpent;
+    }
+
+    public void setEnemies(ArrayList<Enemy> enemies){
+        this.enemies = enemies;
     }
 }

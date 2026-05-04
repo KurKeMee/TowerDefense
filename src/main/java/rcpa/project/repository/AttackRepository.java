@@ -69,6 +69,10 @@ public class AttackRepository {
         return attacks.getOrDefault(id, null);
     }
 
+    public void clear(){
+        attacks.clear();
+    }
+
     /**
      * Метод получения всех атак
      * @return ArrayList<Attack> - возвращает список атак

@@ -19,6 +19,7 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -29,13 +30,8 @@ public class GameMaster implements GameClient.ClientListener {
 
     private GameClient gameClient;
     private boolean isMultiplayer = false;
-    private boolean isHost = false;
     private int playerId = -1;
     private GameServer gameServer;
-
-    // ВАЖНО: Единое хранилище для отрисовки
-    private final Map<Integer, Enemy> enemiesToRender = new ConcurrentHashMap<>();
-    private final Map<Integer, Attack> attacksToRender = new ConcurrentHashMap<>();
 
     private static GameMaster instance;
     private final EnemyRepository enemyRepository;
@@ -53,7 +49,6 @@ public class GameMaster implements GameClient.ClientListener {
     private Tower dragTower;
     private Tower towerToUpdate;
 
-    // Флаг для отслеживания, что игра запущена сервером
     private boolean serverGameStarted = false;
 
     private GameMaster() {
@@ -117,17 +112,14 @@ public class GameMaster implements GameClient.ClientListener {
         g.setColor(Color.WHITE);
 
         if (isMultiplayer && serverGameStarted) {
-            // В мультиплеере ждем врагов с сервера
-            g.drawString("Ожидание врагов...", this.mapUtils.getWidth() / 2 - 100, this.mapUtils.getHeight() / 6);
-            g.drawString("Врагов на карте: " + enemiesToRender.size(), this.mapUtils.getWidth() / 2 - 100, this.mapUtils.getHeight() / 6 + 60);
-
-            // Переключаем на WAVE_STARTED если есть враги или прошло время
-            if (!enemiesToRender.isEmpty() || getSecondsLeft() >= WAVE_CHANGE_COOLDOWN) {
+            g.drawString(String.valueOf((WAVE_CHANGE_COOLDOWN - getSecondsLeft())),
+                    this.mapUtils.getWidth() / 2 - 20, this.mapUtils.getHeight() / 6);
+            if (getSecondsLeft() >= WAVE_CHANGE_COOLDOWN) {
                 frameCount = 100;
                 gameStatus = GameStatus.WAVE_STARTED;
+                attackRepository.clear();
             }
         } else {
-            // Одиночная игра - старая логика
             g.drawString(String.valueOf((WAVE_CHANGE_COOLDOWN - getSecondsLeft())),
                     this.mapUtils.getWidth() / 2 - 20, this.mapUtils.getHeight() / 6);
             if (getSecondsLeft() >= WAVE_CHANGE_COOLDOWN) {
@@ -142,7 +134,6 @@ public class GameMaster implements GameClient.ClientListener {
         g.setFont(new Font("Arial", Font.PLAIN, 50));
         g.setColor(Color.WHITE);
         g.drawString("Wave " + waveLevel, this.mapUtils.getWidth() / 2 - 30, this.mapUtils.getHeight() / 6);
-        g.drawString("Врагов: " + enemiesToRender.size(), this.mapUtils.getWidth() / 2 - 60, this.mapUtils.getHeight() / 6 + 60);
 
         enemiesMove(g);
         attacksMove(g);
@@ -173,9 +164,8 @@ public class GameMaster implements GameClient.ClientListener {
 
     private void towersAttack(Graphics g) {
         TowerRepository.getTowerRepository().getTowers().stream()
-                .filter(t -> !t.isInSlot())
                 .forEach(t -> {
-                    BufferedImage towerImage = t.rotateTower();
+                    BufferedImage towerImage = t.rotateTower(enemyRepository.getEnemies());
                     g.drawImage(towerImage, t.getX(), t.getY(), null);
 
                     if (frameCount % 8 == 0 && (t.getIsAnimation() || t.canAttack())) {
@@ -185,60 +175,32 @@ public class GameMaster implements GameClient.ClientListener {
     }
 
     private void enemiesMove(Graphics g) {
-        // Отладочный вывод КАЖДЫЕ 60 кадров (раз в ~3 секунды)
-        if (frameCount % 60 == 0) {
-            System.out.println("=== ОТРИСОВКА ВРАГОВ (кадр " + frameCount + ") ===");
-            System.out.println("Всего врагов: " + enemiesToRender.size());
-
-            enemiesToRender.values().stream()
-                    .sorted((a, b) -> Integer.compare(a.getId(), b.getId()))
-                    .forEach(e -> {
-                        System.out.println("  Враг " + e.getId() +
-                                ": X=" + e.getX() + " Y=" + e.getY() +
-                                " HP=" + String.format("%.1f", e.getHealth()) +
-                                " Ячейка: " + (e.getX()/CELL_WIDTH) + "," + (e.getY()/CELL_WIDTH) +
-                                " Ориентация: " + e.getLookOrientation());
-                    });
-            System.out.println("===========================================");
-        }
-
-        // Отрисовка врагов
-        enemiesToRender.values().forEach(e -> {
-            // Анимация
+        enemyRepository.getEnemies().forEach(e -> {
             if (frameCount % 8 == 0) {
                 e.playAnimation();
             }
 
-            // Рисуем врага
             g.drawImage(e.getImage(), e.getX(), e.getY(), null);
 
-            // Полоска здоровья
             g.setColor(Color.red);
             g.fillRect(e.getX() + 14, e.getY() - 5,
-                    (int)(e.getHealth() * 100 / e.getMaxHealth()), 5);
+                    (int) (e.getHealth() * 100 / e.getMaxHealth()), 5);
             g.setColor(Color.black);
             g.drawRect(e.getX() + 14, e.getY() - 5, 100, 5);
 
-            // ID врага для отладки
             g.setColor(Color.white);
             g.setFont(new Font("Arial", Font.BOLD, 10));
-            g.drawString("ID:" + e.getId(), e.getX() + 14, e.getY() + 20);
+            g.drawString(e.getName(), e.getX() + 14, e.getY() + 20);
         });
     }
 
     private void attacksMove(Graphics g) {
-        // Отрисовка атак
-        attacksToRender.values().forEach(a -> {
-            a.render(g);
-            // Отладка
-            if (frameCount % 60 == 0) {
-                System.out.println("GameMaster: Отрисовка атаки " + a.getId() +
-                        " на позиции " + a.getX() + "," + a.getY());
-            }
+        System.out.println(attackRepository.getAttacks().size());
+        attackRepository.getAttacks().forEach(attack -> {
+            attack.render(g);
         });
     }
 
-    // ============ СЕТЕВЫЕ МЕТОДЫ ============
 
     public String createMultiplayerRoom() {
         if (!isMultiplayer) {
@@ -251,7 +213,6 @@ public class GameMaster implements GameClient.ClientListener {
 
         String roomName = "Game_" + System.currentTimeMillis() % 10000;
         gameClient.sendRequest(Message.Type.CREATE_ROOM, Map.of("roomName", roomName));
-        isHost = true;
         return roomName;
     }
 
@@ -283,33 +244,14 @@ public class GameMaster implements GameClient.ClientListener {
 
     public void sendTowerPlaced(Tower tower) {
         if (isMultiplayer && gameClient != null) {
-            // ВАЖНО: Используем ID из market, а не сгенерированный clone()
-            // Найдите оригинальный индекс в market
-            int marketId = findTowerMarketId(tower);
-
-            System.out.println("GameMaster: Отправка башни. marketId=" + marketId +
-                    " tower.getId()=" + tower.getId());
-
             GameState.TowerData data = new GameState.TowerData(playerId, tower, GameState.TowerData.Action.PLACED);
-            data.towerId = marketId; // Используем market ID
+            data.marketId = tower.getMarketId();
             data.x = tower.getX();
             data.y = tower.getY();
             gameClient.placeTower(data);
         }
     }
 
-    // Новый метод для поиска ID в market
-    private int findTowerMarketId(Tower tower) {
-        ArrayList<Tower> market = TowerRepository.getTowerRepository().getTowerMarket();
-        for (int i = 0; i < market.size(); i++) {
-            if (market.get(i).getName().equals(tower.getName())) {
-                return i;
-            }
-        }
-        return 0;
-    }
-
-    // ============ ОБРАБОТЧИКИ СООБЩЕНИЙ ============
 
     @Override
     public void onConnected(int playerId) {
@@ -329,15 +271,12 @@ public class GameMaster implements GameClient.ClientListener {
 
         switch (message.getRequestType()) {
             case GAME_STARTED:
-                System.out.println("GameMaster: Игра началась! Волна: " + message.getData("waveLevel"));
                 serverGameStarted = true;
                 waveLevel = (int) message.getData("waveLevel");
 
-                // Загружаем карту
                 SwingUtilities.invokeLater(() -> {
                     MapUtils.getMapUtils().analyzeMap(MAP_1);
                     CellRepository.getCellRepository().buildPath();
-                    System.out.println("GameMaster: Карта загружена на клиенте");
                 });
 
                 setGameStatus(GameStatus.LEVEL_ENTER);
@@ -345,7 +284,7 @@ public class GameMaster implements GameClient.ClientListener {
 
             case PLACE_TOWER:
                 GameState.TowerData towerData = (GameState.TowerData) message.getData("towerData");
-                // placeRemoteTower(towerData);
+                placeRemoteTower(towerData);
                 break;
 
             case REMOVE_TOWER:
@@ -355,6 +294,7 @@ public class GameMaster implements GameClient.ClientListener {
 
             case WAVE_START:
                 waveLevel = (int) message.getData("waveLevel");
+                attackRepository.clear();
                 System.out.println("GameMaster: Началась волна " + waveLevel);
                 break;
 
@@ -375,7 +315,6 @@ public class GameMaster implements GameClient.ClientListener {
 
     @Override
     public void onGameStateReceived(GameState gameState) {
-        System.out.println("GameMaster: Получено состояние игры: " + gameState.getUpdateType());
 
         switch (gameState.getUpdateType()) {
             case ENEMY_SPAWN:
@@ -387,11 +326,16 @@ public class GameMaster implements GameClient.ClientListener {
             case FULL_STATE:
                 handleFullState(gameState);
                 break;
+            case FULL_UPDATE:
+                if(!gameState.getNewEnemies().isEmpty()) handleEnemySpawn(gameState);
+                //if(!gameState.getTowersChanged().isEmpty()) han
+                if(!gameState.getDeadEnemies().isEmpty()) handleEnemyDeath(gameState);
+                if(!gameState.getEnemyMoves().isEmpty()) handleEnemyMoved(gameState);
+                if(!gameState.getNewAttacks().isEmpty()) handleAttackCreated(gameState);
+                if(!gameState.getAttackMoves().isEmpty()) handleAttackMove(gameState);
+                break;
             case ENEMY_MOVED:
                 handleEnemyMoved(gameState);
-                break;
-            case DELTA_UPDATE:
-                handleDeltaUpdate(gameState);
                 break;
             case ATTACK_CREATED:
                 handleAttackCreated(gameState);
@@ -400,12 +344,14 @@ public class GameMaster implements GameClient.ClientListener {
     }
 
     private void handleEnemyMoved(GameState state) {
-        if (state.getEnemyMoves() != null) {
+        if (!enemyRepository.getEnemies().isEmpty()) {
             for (GameState.EnemyMoveData moveData : state.getEnemyMoves()) {
-                Enemy enemy = enemiesToRender.get(moveData.enemyId);
+                Enemy enemy = enemyRepository.getEnemies()
+                        .stream().filter(e->e.getId() == moveData.enemyId).findFirst().orElse(null);
                 if (enemy != null) {
                     enemy.setX(moveData.x);
                     enemy.setY(moveData.y);
+                    enemy.setHealth(moveData.health);
                     enemy.setLookOrientation(moveData.lookOrientation);
                 }
             }
@@ -413,67 +359,44 @@ public class GameMaster implements GameClient.ClientListener {
     }
 
     private void handleEnemySpawn(GameState state) {
-        System.out.println("GameMaster: Спавн " + state.getNewEnemies().size() + " врагов");
-
         for (GameState.EnemyData enemyData : state.getNewEnemies()) {
-            // Проверяем, нет ли уже такого врага
-            if (enemiesToRender.containsKey(enemyData.enemyId)) {
-                System.out.println("GameMaster: Враг " + enemyData.enemyId + " уже существует");
-                continue;
-            }
-
             try {
-                Enemy template = enemyRepository.getEnemiesMarket().get(enemyData.enemyMarketId);
+                Enemy template = enemyRepository.getEnemiesMarket().get(enemyData.marketId);
                 if (template != null) {
                     Enemy enemy = (Enemy) template.clone();
                     enemy.setId(enemyData.enemyId);
 
-                    // Строим путь
                     ArrayList<rcpa.project.entity.base.Cell> path =
                             CellRepository.getCellRepository().buildPath();
                     enemy.setWay(path);
 
-                    // Устанавливаем начальную позицию
                     enemy.setX(enemyData.x);
                     enemy.setY(enemyData.y);
 
-                    enemiesToRender.put(enemy.getId(), enemy);
                     enemyRepository.addNewEnemy(enemy);
-
-                    System.out.println("GameMaster: Враг создан ID=" + enemy.getId() +
-                            " на позиции " + enemy.getX() + "," + enemy.getY());
                 }
             } catch (CloneNotSupportedException e) {
                 e.printStackTrace();
             }
         }
 
-        // Переключаем статус, если есть враги
-        if (!enemiesToRender.isEmpty() && gameStatus == GameStatus.WAVE_STARTING) {
+        if (!enemyRepository.getEnemies().isEmpty() && gameStatus == GameStatus.WAVE_STARTING) {
             gameStatus = GameStatus.WAVE_STARTED;
         }
     }
 
     private void handleEnemyDeath(GameState state) {
-        System.out.println("GameMaster: Смерть " + state.getDeadEnemies().size() + " врагов");
         for (int enemyId : state.getDeadEnemies()) {
-            enemiesToRender.remove(enemyId);
             enemyRepository.deleteEnemy(enemyId);
-            System.out.println("GameMaster: Враг удален ID=" + enemyId);
         }
     }
 
     private void handleFullState(GameState state) {
-        System.out.println("GameMaster: Получено полное состояние");
-
-        // Очищаем текущее состояние
-        enemiesToRender.clear();
         enemyRepository.getEnemies().clear();
 
-        // Загружаем врагов
         for (GameState.EnemyData enemyData : state.getNewEnemies()) {
             try {
-                Enemy template = enemyRepository.getEnemiesMarket().get(enemyData.enemyMarketId);
+                Enemy template = enemyRepository.getEnemiesMarket().get(enemyData.marketId);
                 if (template != null) {
                     Enemy enemy = (Enemy) template.clone();
                     enemy.setId(enemyData.enemyId);
@@ -481,7 +404,6 @@ public class GameMaster implements GameClient.ClientListener {
                     enemy.setX(enemyData.x);
                     enemy.setY(enemyData.y);
 
-                    enemiesToRender.put(enemy.getId(), enemy);
                     enemyRepository.addNewEnemy(enemy);
                 }
             } catch (CloneNotSupportedException e) {
@@ -489,7 +411,6 @@ public class GameMaster implements GameClient.ClientListener {
             }
         }
 
-        // Загружаем башни
         for (GameState.TowerData towerData : state.getTowersChanged()) {
             if (towerData.action == GameState.TowerData.Action.PLACED) {
                 Tower template = TowerRepository.getTowerRepository().getTowerMarket().get(towerData.towerId);
@@ -510,175 +431,71 @@ public class GameMaster implements GameClient.ClientListener {
             }
         }
 
-        System.out.println("GameMaster: Загружено врагов: " + enemiesToRender.size() +
-                ", башен: " + TowerRepository.getTowerRepository().getTowers().size());
-
-        // Если есть враги, переключаем статус
-        if (!enemiesToRender.isEmpty() && gameStatus == GameStatus.WAVE_STARTING) {
+        if (!enemyRepository.getEnemies().isEmpty() && gameStatus == GameStatus.WAVE_STARTING) {
             gameStatus = GameStatus.WAVE_STARTED;
         }
     }
 
-    private void handleDeltaUpdate(GameState state) {
-        // 1. Обновляем позиции врагов
-        if (state.getEnemyMoves() != null && !state.getEnemyMoves().isEmpty()) {
-            for (GameState.EnemyMoveData moveData : state.getEnemyMoves()) {
-                Enemy enemy = enemiesToRender.get(moveData.enemyId);
-                if (enemy != null) {
-                    enemy.setX(moveData.x);
-                    enemy.setY(moveData.y);
-                    enemy.setLookOrientation(moveData.lookOrientation);
-                    // Remove damage application from here
-                }
-            }
-        }
-
-        // 2. Обновляем позиции атак
-        if (state.getAttackMoves() != null && !state.getAttackMoves().isEmpty()) {
-            for (GameState.AttackMoveData moveData : state.getAttackMoves()) {
-                Attack attack = attacksToRender.get(moveData.attackId);
-                if (attack != null) {
-                    attack.setX(moveData.x);
-                    attack.setY(moveData.y);
-                    if (moveData.completed) {
-                        attacksToRender.remove(moveData.attackId);
-                    }
-                }
-            }
-        }
-
-        // 3. Добавляем новых врагов
-        for (GameState.EnemyData enemyData : state.getNewEnemies()) {
-            if (enemiesToRender.containsKey(enemyData.enemyId)) {
-                continue;
-            }
-
-            try {
-                Enemy template = enemyRepository.getEnemiesMarket().get(enemyData.enemyMarketId);
-                if (template != null) {
-                    Enemy enemy = (Enemy) template.clone();
-                    enemy.setId(enemyData.enemyId);
-
-                    ArrayList<rcpa.project.entity.base.Cell> path =
-                            CellRepository.getCellRepository().buildPath();
-                    enemy.setWay(path);
-
-                    enemy.setX(enemyData.x);
-                    enemy.setY(enemyData.y);
-
-                    enemiesToRender.put(enemy.getId(), enemy);
-                }
-            } catch (CloneNotSupportedException e) {
-                e.printStackTrace();
-            }
-        }
-
-        // 4. Удаляем мертвых врагов
-        for (int enemyId : state.getDeadEnemies()) {
-            enemiesToRender.remove(enemyId);
-        }
-
-        // 5. Обрабатываем новые атаки
+    private void handleAttackCreated(GameState state) {
+        if(state.getNewAttacks().isEmpty() || enemyRepository.getEnemies().isEmpty()) return;
         for (GameState.AttackData attackData : state.getNewAttacks()) {
-            Tower tower = TowerRepository.getTowerRepository().getTower(attackData.ownerId);
+            Tower tower = player.getTowerRepository().getTowers()
+                    .stream().filter(t->t.getId() == attackData.ownerId).findFirst().orElse(null);
             if (tower != null) {
                 try {
+                    Enemy target = enemyRepository.getEnemy(attackData.targetId);
+                    tower.getAttack().setTarget(target);
                     Attack attack = (Attack) tower.getAttack().clone();
                     attack.setId(attackData.attackId);
-                    attack.setX(attackData.x);
-                    attack.setY(attackData.y);
+                    switch (attack.getAttackType()) {
+                        case SPIN_ATTACK:
+                            ((SpinAttack) attack).setOwnTower(tower);
+                            attack.setX(attackData.x);
+                            attack.setY(attackData.y);
+                            break;
+                        case SHOOT_ATTACK:
+                        case MELEE_ATTACK:
+                            attack.setX(attackData.x + CELL_WIDTH / 2);
+                            attack.setY(attackData.y + CELL_WIDTH / 2);
+                            break;
+                    }
 
-                    Enemy target = enemiesToRender.get(attackData.targetId);
-                    attack.setTarget(target);
+                    attack.setImage(MapUtils.rotateImage(attack.getImage(),attackData.angle));
+                    attack.setAngle(attackData.angle);
+                    attackRepository.addNewAttack(attack);
 
-                    attacksToRender.put(attack.getId(), attack);
                     tower.setAnimation(true);
+
                 } catch (CloneNotSupportedException e) {
                     e.printStackTrace();
                 }
-            }
-        }
-
-        for (GameState.TowerData towerData : state.getTowersChanged()) {
-            switch (towerData.action) {
-                case PLACED:
-                    // Проверяем, есть ли уже башня с таким ID
-                    if (TowerRepository.getTowerRepository().getTower(towerData.towerId) != null) {
-                        System.out.println("GameMaster: Башня " + towerData.towerId + " уже существует");
-                        break;
-                    }
-
-                    // Ищем ЛЮБОЙ шаблон башни (используем marketId если есть, иначе 0)
-                    int marketId = 0;
-                    if (towerData.towerId >= 0 && towerData.towerId < TowerRepository.getTowerRepository().getTowerMarket().size()) {
-                        marketId = towerData.towerId;
-                    }
-
-                    Tower template = TowerRepository.getTowerRepository().getTowerMarket().get(marketId);
-                    if (template != null) {
-                        try {
-                            Tower tower = (Tower) template.clone();
-                            tower.setId(towerData.towerId); // Используем серверный ID
-                            tower.setX(towerData.x);
-                            tower.setY(towerData.y);
-                            tower.setPlayerId(towerData.playerId);
-                            tower.setInSlot(false);
-                            tower.setCanAttack();
-                            TowerRepository.getTowerRepository().addNewTower(tower);
-                            System.out.println("GameMaster: Башня добавлена! ID=" + towerData.towerId + " marketId=" + marketId);
-                        } catch (CloneNotSupportedException e) {
-                            e.printStackTrace();
-                        }
-                    } else {
-                        System.out.println("GameMaster: Шаблон башни не найден для marketId=" + marketId);
-                    }
-                    break;
-                case REMOVED:
-                    TowerRepository.getTowerRepository().deleteTower(towerData.towerId);
-                    break;
             }
         }
     }
 
-    private void handleAttackCreated(GameState state) {
-        System.out.println("GameMaster: Получено " + state.getNewAttacks().size() + " атак");
-
-        for (GameState.AttackData attackData : state.getNewAttacks()) {
-            Tower tower = TowerRepository.getTowerRepository().getTower(attackData.ownerId);
-            if (tower != null) {
-                try {
-                    Attack attack = (Attack) tower.getAttack().clone();
-                    attack.setId(attackData.attackId);
+    private void handleAttackMove(GameState state) {
+        for (GameState.AttackMoveData attackData : state.getAttackMoves()) {
+            if(attackData.completed) {
+                attackRepository.deleteAttack(attackData.attackId);
+            }
+            else {
+                Attack attack = attackRepository.getAttack(attackData.attackId);
+                if(attack!=null) {
                     attack.setX(attackData.x);
                     attack.setY(attackData.y);
-
-                    // Находим цель среди отрисовываемых врагов
-                    Enemy target = enemiesToRender.get(attackData.targetId);
-                    attack.setTarget(target);
-
-                    attacksToRender.put(attack.getId(), attack);
-
-                    // Запускаем анимацию башни
-                    tower.setAnimation(true);
-
-                    System.out.println("GameMaster: Атака создана ID=" + attack.getId() +
-                            " от башни " + attackData.ownerId +
-                            " на врага " + attackData.targetId);
-
-                } catch (CloneNotSupportedException e) {
-                    e.printStackTrace();
+                    if (attack.getAttackType() == AttackType.SPIN_ATTACK)
+                        ((SpinAttack) attack).setTimeSpent(attackData.timeSpent);
                 }
-            } else {
-                System.out.println("GameMaster: Башня " + attackData.ownerId + " не найдена для атаки");
             }
         }
     }
 
     private void placeRemoteTower(GameState.TowerData towerData) {
-        Tower tower = TowerRepository.getTowerRepository().getTowerMarket().get(towerData.towerId);
+        Tower tower = TowerRepository.getTowerRepository().getTowerMarket().get(towerData.marketId);
         if (tower != null) {
             try {
                 this.towerToUpdate = (Tower) tower.clone();
+                this.towerToUpdate.setId(towerData.towerId);
                 this.towerToUpdate.setX(towerData.x);
                 this.towerToUpdate.setY(towerData.y);
                 this.towerToUpdate.setInSlot(false);
@@ -697,12 +514,9 @@ public class GameMaster implements GameClient.ClientListener {
             } catch (CloneNotSupportedException e) {
                 e.printStackTrace();
             }
-        } else {
-            System.out.println("ERROR: Tower template not found for id " + towerData.towerId);
         }
     }
 
-    // ============ ГЕТТЕРЫ И СЕТТЕРЫ ============
 
     public int getSecondsLeft() {
         return (frameCount * MILLISECONDS_PER_FRAME / 2) / 1000;

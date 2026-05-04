@@ -31,13 +31,14 @@ public class ShootAttack extends Attack implements Cloneable {
             setX(getTarget().getX()+ CELL_WIDTH/2);
             setY(getTarget().getY()+ CELL_WIDTH/2);
             attack();
-            return false; //Означает удалить атаку
+            setCompleted(true);
+            return true;
         } else {
             setX(getX()+(int) ((dx / distance) * getSpeed()));
             setY(getY()+(int) ((dy / distance) * getSpeed()));
         }
 
-        return true;
+        return false;
     }
 
     @Override
