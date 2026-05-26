@@ -2,6 +2,7 @@ package rcpa.project.repository;
 
 import rcpa.project.entity.base.Cell;
 import rcpa.project.entity.base.Enemy;
+import rcpa.project.entity.base.EnemyType;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -72,12 +73,27 @@ public class EnemyRepository {
                                                                 ImageIO.read(new File(SLIME_ENEMY_A2)),
                                                                 ImageIO.read(new File(SLIME_ENEMY_A3))));
             enemiesMarket.addAll(Arrays.asList(new Enemy(
-                                                        getFreeId(),
+                                                        EnemyType.DEFAULT_ENEMY.id,
                                                         30,
+                                                        2,
+                                                        anim.getFirst(),
+                                                        anim,
+                                                        "Slime"),
+                                                new Enemy(
+                                                        EnemyType.BIG_ENEMY.id,
+                                                        150,
                                                         1,
                                                         anim.getFirst(),
                                                         anim,
-                                                        "Slime")));
+                                                        "Big Smile"),
+                                                new Enemy(
+                                                        EnemyType.SPEEDY_ENEMY.id,
+                                                        35,
+                                                        5,
+                                                        anim.getFirst(),
+                                                        anim,
+                                                        "Speedy Slime")));
+
 
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -129,6 +145,10 @@ public class EnemyRepository {
     public byte getFreeId() {
         lastId++;
         return lastId;
+    }
+
+    public void clearEnemies() {
+        enemies.clear();
     }
 
     public ArrayList<Enemy> getEnemiesMarket() {

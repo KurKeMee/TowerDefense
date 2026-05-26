@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static rcpa.project.config.Configuration.*;
-import static rcpa.project.config.Configuration.GameStatus.MAIN_MENU;
+import static rcpa.project.config.Configuration.GameStatus.*;
 
 public class GameMaster implements GameClient.ClientListener {
 
@@ -42,6 +42,7 @@ public class GameMaster implements GameClient.ClientListener {
     private GameStatus gameStatus = MAIN_MENU;
     private String roomId;
     private int frameCount = 0;
+    private int endTime = 0;
     private int animationLevelLoadingStatus = 0;
     private int waveLevel = 0;
 
@@ -50,6 +51,11 @@ public class GameMaster implements GameClient.ClientListener {
     private Tower dragTower;
     private Tower towerToUpdate;
 
+    int slotTableX = 0;
+    int slotTableY = 0;
+    int costSlotTable = 0;
+
+
     private boolean serverGameStarted = false;
 
     private GameMaster() {
@@ -57,7 +63,7 @@ public class GameMaster implements GameClient.ClientListener {
         this.cellRepository = CellRepository.getCellRepository();
         this.attackRepository = AttackRepository.getAttackRepository();
         this.mapUtils = MapUtils.getMapUtils();
-        this.player = new Player("f", 200, TowerRepository.getTowerRepository());
+        this.player = new Player("f", 300, TowerRepository.getTowerRepository());
     }
 
     public static synchronized GameMaster getGameMaster() {
@@ -68,25 +74,95 @@ public class GameMaster implements GameClient.ClientListener {
     }
 
     public void renderFrame(Graphics g) {
-        if (gameStatus != MAIN_MENU) frameCount++;
+        if (gameStatus != MAIN_MENU && gameStatus!= GAME_LOSE && gameStatus!=GAME_WIN) frameCount++;
+        if (gameStatus == GAME_LOSE || gameStatus == GAME_WIN) endTime++;
+
+        if (endTime == 500) {
+            returnToMenu();
+        }
 
         if (isDragTower) {
             onDragTowerEvent(g);
         }
 
-        if (gameStatus == MAIN_MENU) {
-            mainMenu(g);
-        } else if (gameStatus == GameStatus.MAIN_MENU_LEVEL) {
-            mainMenuLevelState(g);
-        } else if (gameStatus == GameStatus.LEVEL_ENTER) {
-            gameStatus = GameStatus.WAVE_STARTING;
-        } else if (gameStatus == GameStatus.WAVE_STARTING) {
+        if(gameStatus==GameStatus.WAVE_STARTING || gameStatus == GameStatus.WAVE_STARTED){
             towersAttack(g);
-            waveStarting(g);
-        } else if (gameStatus == GameStatus.WAVE_STARTED) {
-            towersAttack(g);
-            waveStarted(g);
+
+            try {
+                g.drawImage(ImageIO.read(new File(LEVELS_BUTTON_IMAGE)),
+                        MapUtils.getMapUtils().getWidth()-100,
+                        150,
+                        80,30,null);
+                g.setColor(Color.ORANGE);
+                g.setFont(new Font("Gabriola", Font.BOLD, 40));
+                g.drawString(String.valueOf(player.getMoney()), MapUtils.getMapUtils().getWidth()-85, 175);
+
+                if(slotTableX!=0){
+                    g.drawImage(ImageIO.read(new File(EXIT_BUTTON_IMAGE)),
+                            slotTableX,
+                            slotTableY,
+                            80,30,null);
+                    g.setColor(Color.WHITE);
+                    g.setFont(new Font("Gabriola", Font.BOLD, Math.min(40,(int)(80*1.5)/String.valueOf(costSlotTable).length())));
+                    g.drawString(String.valueOf(costSlotTable), slotTableX+15, slotTableY+25);
+                }
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
+
+        switch (gameStatus){
+            case MAIN_MENU:
+                mainMenu(g);
+                break;
+            case MAIN_MENU_LEVEL:
+                mainMenuLevelState(g);
+                break;
+            case LEVEL_ENTER:
+                break;
+            case WAVE_STARTING:
+                waveStarting(g);
+                break;
+            case WAVE_STARTED:
+            case GAME_LOSE:
+            case GAME_WIN:
+                waveStarted(g);
+                if(gameStatus==GameStatus.GAME_LOSE) loseScreen(g);
+                else if(gameStatus==GameStatus.GAME_WIN) winScreen(g);
+                break;
+        }
+    }
+
+    private void returnToMenu(){
+        gameStatus = MAIN_MENU;
+        endTime = 0;
+        frameCount =0;
+        enemyRepository.clearEnemies();
+        player.getTowerRepository().clearTowers();
+        CellRepository.getCellRepository().clearCells();
+        attackRepository.clear();
+        roomId = null;
+        player.setMoney(300);
+    }
+
+    private void loseScreen(Graphics g) {
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setColor(new Color(0.0f,0.0f,0.0f,0.5f));
+        g2d.fillRect(0,0,MapUtils.getMapUtils().getWidth(),MapUtils.getMapUtils().getHeight());
+
+        g.setColor(Color.ORANGE);
+        g.setFont(new Font("Gabriola", Font.BOLD, 70));
+        g.drawString("Поражение..", (int)(MapUtils.getMapUtils().getWidth()*1.5/4),MapUtils.getMapUtils().getHeight()/2);
+    }
+
+    private void winScreen(Graphics g) {
+        Graphics2D g2d = (Graphics2D) g;
+        g2d.setColor(new Color(0.0f,0.0f,0.0f,0.5f));
+        g2d.fillRect(0,0,MapUtils.getMapUtils().getWidth(),MapUtils.getMapUtils().getHeight());
+
+        g.setColor(Color.ORANGE);
+        g.setFont(new Font("Gabriola", Font.BOLD, 70));
+        g.drawString("Победа!", (int)(MapUtils.getMapUtils().getWidth()*1.5/4),MapUtils.getMapUtils().getHeight()/2);
     }
 
     private void mainMenu(Graphics g){
@@ -210,14 +286,20 @@ public class GameMaster implements GameClient.ClientListener {
             g.setColor(Color.white);
             g.setFont(new Font("Arial", Font.BOLD, 10));
             g.drawString(e.getName(), e.getX() + 14, e.getY() + 20);
+            g.drawString(String.format("%.2f",e.getHealth()), e.getX() + 60,e.getY()-10);
         });
     }
 
     private void attacksMove(Graphics g) {
-        System.out.println(attackRepository.getAttacks().size());
         attackRepository.getAttacks().forEach(attack -> {
             attack.render(g);
         });
+    }
+
+    public void renderSlotCostTable(int x, int y, int cost){
+        costSlotTable = cost;
+        slotTableX = x;
+        slotTableY = y;
     }
 
 
@@ -275,6 +357,7 @@ public class GameMaster implements GameClient.ClientListener {
     @Override
     public void onConnected(int playerId) {
         this.playerId = playerId;
+        this.player.setId(playerId);
         System.out.println("Подключен как игрок " + playerId);
     }
 
@@ -301,7 +384,13 @@ public class GameMaster implements GameClient.ClientListener {
                 setGameStatus(GameStatus.LEVEL_ENTER);
                 break;
 
+            case GAME_OVER:
+                if((boolean)message.getData("isVictory")) gameStatus = GameStatus.GAME_WIN;
+                else gameStatus = GameStatus.GAME_LOSE;
+                break;
+
             case PLACE_TOWER:
+                player.setId((int) message.getData("playerId"));
                 GameState.TowerData towerData = (GameState.TowerData) message.getData("towerData");
                 placeRemoteTower(towerData);
                 break;
@@ -324,6 +413,10 @@ public class GameMaster implements GameClient.ClientListener {
             case ROOM_JOINED:
                 roomId = (String) message.getData("roomId");
                 System.out.println("Успешно подключились к комнате: " + message.getData("roomId"));
+                break;
+
+            case DISCONNECT:
+                returnToMenu();
                 break;
 
             case ERROR:
@@ -355,6 +448,7 @@ public class GameMaster implements GameClient.ClientListener {
                 if(!gameState.getEnemyMoves().isEmpty()) handleEnemyMoved(gameState);
                 if(!gameState.getNewAttacks().isEmpty()) handleAttackCreated(gameState);
                 if(!gameState.getAttackMoves().isEmpty()) handleAttackMove(gameState);
+                if(!gameState.getPlayersData().isEmpty()) handleUpdatePlayer(gameState);
                 break;
             case ENEMY_MOVED:
                 handleEnemyMoved(gameState);
@@ -363,6 +457,14 @@ public class GameMaster implements GameClient.ClientListener {
                 handleAttackCreated(gameState);
                 break;
         }
+    }
+
+    private void handleUpdatePlayer(GameState gameState) {
+        gameState.getPlayersData()
+                .stream()
+                .filter(p -> p.playerId == playerId)
+                .findFirst()
+                .ifPresent(playerData -> player.setMoney(playerData.money));
     }
 
     private void handleEnemyMoved(GameState state) {

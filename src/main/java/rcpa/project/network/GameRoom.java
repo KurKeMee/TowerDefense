@@ -2,13 +2,11 @@ package rcpa.project.network;
 
 import rcpa.project.config.Configuration;
 import rcpa.project.entity.attacks.SpinAttack;
-import rcpa.project.entity.base.Attack;
-import rcpa.project.entity.base.AttackType;
-import rcpa.project.entity.base.Enemy;
-import rcpa.project.entity.base.Tower;
+import rcpa.project.entity.base.*;
 import rcpa.project.model.GameState;
 import rcpa.project.model.Message;
 import rcpa.project.model.PlayerInfo;
+import rcpa.project.repository.AttackRepository;
 import rcpa.project.repository.CellRepository;
 import rcpa.project.repository.EnemyRepository;
 import rcpa.project.repository.TowerRepository;
@@ -24,6 +22,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static rcpa.project.config.Configuration.CELL_WIDTH;
+import static rcpa.project.entity.base.EnemyType.*;
 
 public class GameRoom {
     private String roomId;
@@ -40,6 +39,7 @@ public class GameRoom {
     private Map<Integer, Tower> towers = new ConcurrentHashMap<>();
     private Map<Integer, Attack> attacks = new ConcurrentHashMap<>();
 
+    private List<GameState.PlayerData> pendingPlayerDataUpdate = new ArrayList<>();
     private List<GameState.EnemyData> pendingNewEnemies = new ArrayList<>();
     private List<GameState.EnemyMoveData> pendingEnemiesMove = new ArrayList<>();
     private List<Integer> pendingDeadEnemies = new ArrayList<>();
@@ -52,8 +52,46 @@ public class GameRoom {
     private int frameCount = 0;
     private boolean waveActive = false;
 
+    private int enemyRespawn = 100;
     private int nextEnemyId = 0;
     private int nextAttackId = 0;
+
+    private List<List<Byte>> waveEnemyTypes = new ArrayList<>(Arrays.asList(
+            new ArrayList<>(Arrays.asList(DEFAULT_ENEMY.id,
+                    DEFAULT_ENEMY.id,
+                    DEFAULT_ENEMY.id,
+                    DEFAULT_ENEMY.id,
+                    DEFAULT_ENEMY.id)),
+            new ArrayList<>(Arrays.asList(BIG_ENEMY.id,
+                    BIG_ENEMY.id,
+                    BIG_ENEMY.id,
+                    DEFAULT_ENEMY.id,
+                    DEFAULT_ENEMY.id,
+                    DEFAULT_ENEMY.id,
+                    DEFAULT_ENEMY.id,
+                    DEFAULT_ENEMY.id,
+                    DEFAULT_ENEMY.id)),
+            new ArrayList<>(Arrays.asList(BIG_ENEMY.id,
+                    BIG_ENEMY.id,
+                    SPEEDY_ENEMY.id,
+                    SPEEDY_ENEMY.id,
+                    SPEEDY_ENEMY.id)),
+            new ArrayList<>(Arrays.asList(BIG_ENEMY.id,
+                    BIG_ENEMY.id,
+                    BIG_ENEMY.id,
+                    BIG_ENEMY.id,
+                    BIG_ENEMY.id)),
+            new ArrayList<>(Arrays.asList(SPEEDY_ENEMY.id,
+                    SPEEDY_ENEMY.id,
+                    BIG_ENEMY.id,
+                    SPEEDY_ENEMY.id,
+                    BIG_ENEMY.id,
+                    SPEEDY_ENEMY.id,
+                    DEFAULT_ENEMY.id,
+                    DEFAULT_ENEMY.id,
+                    DEFAULT_ENEMY.id,
+                    DEFAULT_ENEMY.id))
+    ));
 
     public GameRoom(String roomId, String roomName, int hostId, GameServer server) {
         this.roomId = roomId;
@@ -64,6 +102,7 @@ public class GameRoom {
         this.gameStarted = false;
         this.currentState = new GameState();
         this.waveLevel = 0;
+
         init();
     }
 
@@ -75,7 +114,12 @@ public class GameRoom {
     public void addPlayer(int playerId, ClientHandler handler) {
         players.put(playerId, handler);
         PlayerInfo player = new PlayerInfo(playerId, handler.getPlayerName(), null, 0);
-        currentState.getPlayers().put(playerId, new GameState.PlayerData(playerId, handler.getPlayerName()));
+        currentState.getPlayers().put(playerId, new GameState.PlayerData(playerId, handler.getPlayerName(), 300));
+
+        Message message = new Message(Message.Type.PLAYER_ASSIGNED);
+        message.putData("playerId", playerId);
+        message.setSenderId(playerId);
+        broadcastPlayer(message);
     }
 
     public void removePlayer(int playerId) {
@@ -110,7 +154,7 @@ public class GameRoom {
             gameStarted = true;
             startTime = System.currentTimeMillis();
             waveLevel = 1;
-            enemiesPerWave = 5;
+            enemiesPerWave = waveEnemyTypes.getFirst().size();
             enemyCountSpawned = 0;
             waveActive = true;
             frameCount = 0;
@@ -126,7 +170,7 @@ public class GameRoom {
     private void spawnEnemy() {
         List<Enemy> market = EnemyRepository.getEnemyRepository().getEnemiesMarket();
         if (market.isEmpty()) return;
-        Enemy template = market.get(0);
+        Enemy template = market.get(waveEnemyTypes.get(waveLevel-1).get(enemyCountSpawned));
         if (template == null) return;
         try {
             Enemy enemy = (Enemy) template.clone();
@@ -137,7 +181,10 @@ public class GameRoom {
             enemies.put(enemy.getId(), enemy);
             enemyCountSpawned++;
 
-            GameState.EnemyData enemyData = new GameState.EnemyData(0, enemy.getId(), startX, startY);
+            GameState.EnemyData enemyData = new GameState.EnemyData(waveEnemyTypes.get(waveLevel-1).get(enemyCountSpawned-1),
+                                                                    enemy.getId(),
+                                                                    startX,
+                                                                    startY);
             pendingNewEnemies.add(enemyData);
         } catch (CloneNotSupportedException e) {
             e.printStackTrace();
@@ -148,11 +195,17 @@ public class GameRoom {
         if (!gameStarted || !waveActive) return;
         frameCount++;
 
-        if (frameCount % 100 == 0 && enemyCountSpawned < enemiesPerWave) {
+        if (frameCount % enemyRespawn == 0 && enemyCountSpawned < enemiesPerWave) {
             spawnEnemy();
         }
         if (enemyCountSpawned >= enemiesPerWave && allEnemiesDead()) {
-            startNextWave();
+            if(waveLevel!=5) startNextWave();
+            else{
+                gameStarted = false;
+                Message message = new Message(Message.Type.GAME_OVER);
+                message.putData("isVictory", true);
+                broadcast(message);
+            }
         } else {
             enemyMove();
             towerAttack();
@@ -164,11 +217,16 @@ public class GameRoom {
                 !pendingEnemiesMove.isEmpty() ||
                 !pendingNewEnemies.isEmpty() ||
                 !pendingDeadEnemies.isEmpty() ||
-                !pendingAttacksMove.isEmpty()) {
+                !pendingAttacksMove.isEmpty() ||
+                !pendingPlayerDataUpdate.isEmpty()) {
             GameState state = new GameState();
             state.setUpdateType(GameState.UpdateType.FULL_UPDATE);
             state.setWaveLevel(waveLevel);
 
+            if (!pendingPlayerDataUpdate.isEmpty()) {
+                state.setPlayerData(List.copyOf(pendingPlayerDataUpdate));
+                pendingPlayerDataUpdate.clear();
+            }
             if (!pendingEnemiesMove.isEmpty()) {
                 state.setEnemyMoves(List.copyOf(pendingEnemiesMove));
                 pendingEnemiesMove.clear();
@@ -202,9 +260,40 @@ public class GameRoom {
         enemies.values().forEach(e->{
             e.move();
 
-            GameState.EnemyMoveData enemyMoveData = new GameState.EnemyMoveData(e.getId(),e.getX(),e.getY(),e.getHealth(),e.getLookOrientation());
-            pendingEnemiesMove.add(enemyMoveData);
+            if(e.isReached()){
+                gameStarted = false;
+
+                Message message = new Message(Message.Type.GAME_OVER);
+                message.putData("isVictory", false);
+                broadcast(message);
+
+                clearRoom();
+            }
+            else{
+                GameState.EnemyMoveData enemyMoveData = new GameState.EnemyMoveData(e.getId(),e.getX(),e.getY(),e.getHealth(),e.getLookOrientation());
+                pendingEnemiesMove.add(enemyMoveData);
+            }
         });
+    }
+
+    private void clearRoom(){
+        pendingPlayerDataUpdate.clear();
+        pendingAttacks.clear();
+        pendingTowers.clear();
+        pendingEnemiesMove.clear();
+        pendingNewEnemies.clear();
+        pendingDeadEnemies.clear();
+        pendingAttacksMove.clear();
+
+        towers.clear();
+        enemies.clear();
+        attacks.clear();
+        players.clear();
+
+        CellRepository.getCellRepository().clearCells();
+        TowerRepository.getTowerRepository().clearTowers();
+        EnemyRepository.getEnemyRepository().clearEnemies();
+        AttackRepository.getAttackRepository().clear();
     }
 
     private void towerAttack() {
@@ -262,11 +351,16 @@ public class GameRoom {
             }
             pendingAttacksMove.add(attackMoveData);
 
-            if(attack.isCompleted() || target==null) attacks.remove(attack.getId());
+            if(attack.isCompleted()) attacks.remove(attack.getId());
 
-            if (target != null && target.getHealth() <= 0) {
+            if (target.getHealth() <= 0 && enemies.get(target.getId())!=null) {
                 enemies.remove(target.getId());
                 pendingDeadEnemies.add(target.getId());
+                currentState.getPlayers().forEach((id, handler) ->{
+                    handler.money+=50;
+                    GameState.PlayerData playerData = new GameState.PlayerData(id, handler.money);
+                    pendingPlayerDataUpdate.add(playerData);
+                });
             }
 
         }
@@ -274,11 +368,28 @@ public class GameRoom {
 
     private void startNextWave() {
         waveLevel++;
-        enemiesPerWave += 2;
+        enemiesPerWave = waveEnemyTypes.get(waveLevel-1).size();
+        switch (waveLevel){
+            case 1:
+                enemyRespawn = 100;
+                break;
+            case 2:
+                enemyRespawn = 75;
+                break;
+            case 3:
+            case 4:
+                break;
+            case 5:
+                enemyRespawn = 60;
+                break;
+        }
+
+
         enemyCountSpawned = 0;
         frameCount = 0;
         towers.values().forEach(t -> { t.setLastAttackTime(0); t.setCanAttack(); });
         attacks.clear();
+
         Message msg = new Message(Message.Type.WAVE_START);
         msg.putData("waveLevel", waveLevel);
         broadcast(msg);
@@ -293,7 +404,13 @@ public class GameRoom {
         fullState.setUpdateType(GameState.UpdateType.FULL_STATE);
         fullState.setWaveLevel(waveLevel);
         fullState.setTimestamp(System.currentTimeMillis());
-        enemies.values().forEach(enemy -> fullState.getNewEnemies().add(new GameState.EnemyData(0, enemy.getId(), enemy.getX(), enemy.getY())));
+        enemies.values()
+                .forEach(
+                        enemy -> fullState.getNewEnemies()
+                        .add(new GameState.EnemyData(0,
+                                                        enemy.getId(),
+                                                        enemy.getX(),
+                                                        enemy.getY())));
         towers.values().forEach(tower -> fullState.getTowersChanged().add(new GameState.TowerData(tower.getPlayerId(), tower, GameState.TowerData.Action.PLACED)));
         broadcastGameState(fullState);
     }
@@ -313,9 +430,10 @@ public class GameRoom {
 
     private void handleTowerPlaced(Message message) {
         GameState.TowerData towerData = (GameState.TowerData) message.getData("towerData");
-
+        GameState.PlayerData playerD = currentState.getPlayers().get((int)message.getData("playerId"));
+        Player player = new Player(playerD.playerName,playerD.money, TowerRepository.getTowerRepository());
         Tower template = TowerRepository.getTowerRepository().getTowerMarket().get(towerData.marketId);
-        if (template != null) {
+        if (template != null && player.canAfford(template.getCost())) {
             try {
                 Tower newTower = (Tower) template.clone();
                 newTower.setId(towerData.towerId);
@@ -326,9 +444,11 @@ public class GameRoom {
                 newTower.setCanAttack();
                 newTower.setLastAttackTime(0);
                 towers.put(newTower.getId(), newTower);
-
+                playerD.money -= template.getCost();
 
                 GameState.TowerData towerData1 = new GameState.TowerData(newTower.getPlayerId(),newTower, GameState.TowerData.Action.PLACED);
+                GameState.PlayerData playerData = new GameState.PlayerData(playerD.playerId, playerD.money);
+                pendingPlayerDataUpdate.add(playerData);
                 pendingTowers.add(towerData1);
             } catch (CloneNotSupportedException e) {
                 e.printStackTrace();
@@ -358,6 +478,12 @@ public class GameRoom {
             GameState.TowerData removeData = new GameState.TowerData(0, tower, GameState.TowerData.Action.UPGRADED);
             pendingTowers.add(removeData);
         }
+    }
+
+    public void broadcastPlayer(Message message){
+        players.forEach((id, handler) ->{
+            if(id == message.getSenderId()) handler.sendMessage(message);
+        });
     }
 
     public void broadcast(Message message) {

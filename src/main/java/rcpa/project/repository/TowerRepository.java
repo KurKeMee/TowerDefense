@@ -112,7 +112,7 @@ public class TowerRepository {
                                                             towerAnimationLaser,
                                                             "Spiky Bee"),
                                                     new Tower(1,
-                                                            200,
+                                                            200000,
                                                             10,
                                                             3 * CELL_WIDTH,
                                                             10,
@@ -125,20 +125,20 @@ public class TowerRepository {
                                                             towerAnimationSkeletonKing,
                                                             "Skeleton King Tower"),
                                                     new Tower(2,
-                                                            200,
-                                                            3, //TODO Добавить определение пересечения плоскостей
+                                                            150,
+                                                            6, //TODO Добавить определение пересечения плоскостей
                                                             1.5 * CELL_WIDTH,
-                                                            3,
+                                                            4,
                                                             new MeleeAttack(
                                                                     AttackRepository.getAttackRepository().getFreeId(),
-                                                                    3,
+                                                                    6,
                                                                     ImageIO.read(new File(SABER_TOWER_ATTACK)),
                                                                     0,0,null, AttackType.MELEE_ATTACK),
                                                             towerAnimationSaber.getFirst(),
                                                             towerAnimationSaber,
                                                             "Melee bee"),
                                                     new Tower(3,
-                                                            200,
+                                                            200000,
                                                             3,
                                                             3 * CELL_WIDTH,
                                                             1,
@@ -151,13 +151,13 @@ public class TowerRepository {
                                                             towerAnimationTripleShooter,
                                                             "TripleShooter Tower"),
                                                     new Tower(4,
-                                                            200,
-                                                            0.2,
+                                                            100,
+                                                            0.8,
                                                             1.5 * CELL_WIDTH,
                                                             3,
                                                             new SpinAttack(
                                                                     AttackRepository.getAttackRepository().getFreeId(),
-                                                                    0.6,
+                                                                    0.8,
                                                                     ImageIO.read(new File(CACTUS_TOWER_ATTACK)),
                                                                     0,0,null,   3, AttackType.SPIN_ATTACK,CELL_WIDTH*1.5),
                                                             towerAnimationCactus.getFirst(),
@@ -210,6 +210,10 @@ public class TowerRepository {
      */
     public byte getFreeId() {
         return (byte) (towers.size());
+    }
+
+    public void clearTowers(){
+        towers.clear();
     }
 
     public static ArrayList<Tower> getTowerMarket() {

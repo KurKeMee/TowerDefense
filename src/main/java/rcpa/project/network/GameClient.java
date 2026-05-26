@@ -70,6 +70,8 @@ public class GameClient {
             }
         } catch (IOException | ClassNotFoundException e) {
             if(connected) {
+                Message message = new Message(Message.Type.DISCONNECT);
+                sendMessage(message);
                 System.err.println("Соединение потеряно "+e.getMessage());
             }
         }
@@ -139,6 +141,7 @@ public class GameClient {
 
     public void placeTower(GameState.TowerData towerData){
         Message message = new Message(Message.Type.PLACE_TOWER);
+        message.putData("playerId", playerId);
         message.putData("towerData", towerData);
         sendMessage(message);
     }

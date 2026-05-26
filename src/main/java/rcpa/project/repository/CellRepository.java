@@ -126,6 +126,10 @@ public class CellRepository {
         return cells.getOrDefault(String.format("%d;%d", x, y), null);
     }
 
+    public void clearCells(){
+        cells.clear();
+    }
+
     /**
      * Метод получения всех ячеек
      *

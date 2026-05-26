@@ -73,7 +73,6 @@ public class ClientHandler implements Runnable {
                 handleLeaveRoom(message);
                 break;
             case START_GAME:
-                System.out.println(clientId);
                 handleStartGame(message);
                 break;
             case PLACE_TOWER:

@@ -61,14 +61,14 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
 
         this.frame = frame;
 
-        initPanel();
+        menuPanel();
         timer.start();
     }
 
     /**
-     * Метод инициализации панели
+     * Метод отображения меню
      */
-    public void initPanel() {
+    public void menuPanel() {
         resetComponents(frame);
         this.setBounds(0, 0,1024, 800);
         this.setLayout(null);
@@ -304,8 +304,12 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
             currentGameStatus = newStatus;
 
             switch (currentGameStatus) {
-                case WAVE_STARTING:
+                case MAIN_MENU:
+                    frame.setIconImage(null);
+                    menuPanel();
+                    break;
                 case LEVEL_ENTER:
+                    gameMaster.setGameStatus(GameStatus.WAVE_STARTING);
                     frame.setIconImage(null);
                     levelLoad();
                     break;
@@ -349,7 +353,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
     @Override
     public void mouseReleased(MouseEvent e) {
         Tower newTower = gameMaster.getDragTower();
-        if (newTower != null) {
+        if (newTower != null && gameMaster.getPlayer().canAfford(newTower.getCost())) {
             if (newTower.isCanOccupe()) {
                 newTower.setBounds(newTower.getX(), newTower.getY(),
                         newTower.getWidth(), newTower.getHeight());

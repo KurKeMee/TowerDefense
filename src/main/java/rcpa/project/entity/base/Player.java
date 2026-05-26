@@ -6,6 +6,7 @@ import rcpa.project.repository.TowerRepository;
 import java.io.IOException;
 
 public class Player {
+    private int id;
     private String name;
     private TowerRepository towerRepository;
     private SlotRepository slotRepository;
@@ -21,15 +22,6 @@ public class Player {
     }
 
 
-    public Tower spawnTower(){
-        if(grabbedSlot!=null){
-            Tower placeTower = grabbedSlot.getTower();
-            grabbedSlot = null;
-            return placeTower;
-        }
-        return null;
-    }
-
     private void fillSlots(){
         try {
             slotRepository.addNewSlot(new Slot(slotRepository.getFreeId(), towerRepository.getTowerMarket().get(0)));
@@ -42,17 +34,28 @@ public class Player {
         }
     }
 
+    public boolean canAfford(int price){
+        return money >= price;
+    }
+
     public String getName() {
         return name;
     }
 
+    public void setMoney(int money) {
+        this.money = money;
+    }
     public int getMoney() {
         return money;
     }
 
-    public void setMoney(int moneyInc) {
-        if(this.money-moneyInc<0) return;
-        this.money -= moneyInc;
+    public void spendMoney(int moneyToSpend) {
+        if(!canAfford(moneyToSpend)) return;
+        this.money -= moneyToSpend;
+    }
+
+    public void earnMoney(int moneyToEarn) {
+        this.money += moneyToEarn;
     }
 
     public SlotRepository getSlotRepository() {
@@ -61,5 +64,13 @@ public class Player {
 
     public TowerRepository getTowerRepository(){
         return towerRepository;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 }

@@ -11,7 +11,7 @@ import java.util.concurrent.*;
 
 public class GameServer {
     private final int PORT = 8080;
-    private final int TICK_RATE = 20; // 20 обновлений в секунду
+    private final int TICK_RATE = 20;
 
     private ServerSocket serverSocket;
     private ExecutorService threadPool;
@@ -35,7 +35,6 @@ public class GameServer {
             serverSocket = new ServerSocket(PORT);
             System.out.println("Сервер запущен на порту " + PORT);
 
-            // Запускаем игровой цикл сервера
             gameLoop.scheduleAtFixedRate(this::gameTick, 0, 1000 / TICK_RATE, TimeUnit.MILLISECONDS);
 
             while (running) {
@@ -68,7 +67,7 @@ public class GameServer {
     private void checkTimeouts() {
         long now = System.currentTimeMillis();
         clients.values().stream()
-                .filter(c -> now - c.getLastActivity() > 300000) // 5 минут
+                .filter(c -> now - c.getLastActivity() > 30000000)
                 .forEach(c -> {
                     System.out.println("Клиент " + c.getClientId() + " отключен по таймеру");
                     disconnectClient(c.getClientId());

@@ -35,7 +35,15 @@ public class Slot extends JComponent {
 
         this.addMouseListener(new MouseAdapter() {
             @Override
+            public void mouseEntered(MouseEvent e) {
+                GameMaster.getGameMaster().renderSlotCostTable(getX()-80,getY()+TOWER_SLOT_RESIZING/3,tower.getCost());
+            }
+            public void mouseExited(MouseEvent e) {
+                GameMaster.getGameMaster().renderSlotCostTable(0,0,0);
+            }
+            @Override
             public void mousePressed(MouseEvent e) {
+                if(!GameMaster.getGameMaster().getPlayer().canAfford(tower.getCost())) return;
                 dragTower=true;
                 GameMaster.getGameMaster().setIsDragTower(true);
                 try {
@@ -67,7 +75,7 @@ public class Slot extends JComponent {
            @Override
            public void mouseDragged(MouseEvent e) {
                Tower newTower = GameMaster.getGameMaster().getDragTower();
-               if(!newTower.isCanOccupe()) {
+               if(newTower!=null && !newTower.isCanOccupe()) {
                    Point globalMousePos = e.getLocationOnScreen();
                    SwingUtilities.convertPointFromScreen(globalMousePos, getParent());
                    newTower.setX(globalMousePos.x - CELL_WIDTH / 2);

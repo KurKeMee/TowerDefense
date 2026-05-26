@@ -37,6 +37,7 @@ public class GameState implements Serializable {
     private List<TowerData> towersChanged;
     private List<AttackData> newAttacks;
     private List<AttackMoveData> attackMoves;
+    private List<PlayerData> playerData;
 
     public GameState() {
         this.players = new HashMap<>();
@@ -46,6 +47,7 @@ public class GameState implements Serializable {
         this.towersChanged = new ArrayList<>();
         this.newAttacks = new ArrayList<>();
         this.attackMoves = new ArrayList<>();
+        this.playerData = new ArrayList<>();
         this.timestamp = System.currentTimeMillis();
     }
 
@@ -60,8 +62,20 @@ public class GameState implements Serializable {
         public PlayerData(int playerId, String playerName) {
             this.playerId = playerId;
             this.playerName = playerName;
-            this.money = 200;
+            this.money = 300;
             this.isReady = false;
+        }
+
+        public PlayerData(int playerId, String playerName, int money) {
+            this.playerId = playerId;
+            this.playerName = playerName;
+            this.money = money;
+            this.isReady = false;
+        }
+
+        public PlayerData(int playerId, int money) {
+            this.playerId = playerId;
+            this.money = money;
         }
     }
 
@@ -170,6 +184,8 @@ public class GameState implements Serializable {
 
     public List<EnemyMoveData> getEnemyMoves() { return enemyMoves; }
     public void setEnemyMoves(List<EnemyMoveData> enemyMoves) { this.enemyMoves = enemyMoves; }
+    public List<PlayerData> getPlayersData() { return playerData; }
+    public void setPlayerData(List<PlayerData> playerData) { this.playerData = playerData; }
     public List<AttackMoveData> getAttackMoves() { return attackMoves; }
     public void setAttackMoves(List<AttackMoveData> attackMoves) { this.attackMoves = attackMoves; }
 

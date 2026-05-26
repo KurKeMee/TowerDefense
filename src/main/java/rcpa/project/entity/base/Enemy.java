@@ -15,6 +15,7 @@ public class Enemy implements Cloneable{
     private double speed;
     private boolean canMove = true;
     private int wayProgress = 0;
+    private double wayPassed = 0;
     private String name;
     private BufferedImage image;
     private int lookOrientation;
@@ -24,6 +25,7 @@ public class Enemy implements Cloneable{
     private Cell targetPosition;
     private ArrayList<BufferedImage> animation;
     private ArrayList<Cell> way;
+    private boolean isReached = false;
 
 
     public Enemy(byte id,
@@ -49,25 +51,51 @@ public class Enemy implements Cloneable{
     }
 
     public void move(){
-        if(this.currentPosition.cellEquals(this.targetPosition)){
-            wayProgress++;
-            this.targetPosition = getNextStep();
+        wayPassed+=speed;
+
+        if(targetPosition!=null) {
+            double[] orientation = this.currentPosition.cellReach(this.targetPosition);
+            orientation[0] *= this.speed;
+            orientation[1] *= this.speed;
+            x += (int) orientation[0];
+            y += (int) orientation[1];
+
+            double targetX = targetPosition.getXCord() * CELL_WIDTH;
+            double targetY = targetPosition.getYCord() * CELL_WIDTH;
+
+            double dx = targetX - x;
+            double dy = targetY - y;
+            double distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance <= speed) {
+                currentPosition = targetPosition;
+                x = currentPosition.getXCord() * CELL_WIDTH;
+                y = currentPosition.getYCord() * CELL_WIDTH;
+            }
+
+            if (Math.abs(orientation[0]) > Math.abs(orientation[1])) {
+                lookOrientation = orientation[0] < 0 ? 1 : 3; // 1:влево, 3:вправо
+            } else {
+                lookOrientation = orientation[1] < 0 ? 2 : 0; // 2:вверх, 0:вниз
+            }
         }
-        double[] orientation = this.currentPosition.cellReach(this.targetPosition);
-        orientation[0] *= this.speed;
-        orientation[1] *= this.speed;
-        x+= (int) orientation[0];
-        y+= (int) orientation[1];
-        if(targetPosition.getXCord()*CELL_WIDTH%x<speed && targetPosition.getYCord()*CELL_WIDTH%y<speed){
-            currentPosition = targetPosition;
-            x=currentPosition.getXCord()*CELL_WIDTH;
-            y=currentPosition.getYCord()*CELL_WIDTH;
+        else{
+            double[] orientation = way.get(way.size()-2).cellReach(currentPosition);
+            orientation[0] *= this.speed;
+            orientation[1] *= this.speed;
+            x += (int) orientation[0];
+            y += (int) orientation[1];
+            if (currentPosition.getXCord() * CELL_WIDTH % x < speed && currentPosition.getYCord() * CELL_WIDTH % y < speed) {
+                x = currentPosition.getXCord() * CELL_WIDTH;
+                y = currentPosition.getYCord() * CELL_WIDTH;
+
+                isReached = true;
+                return;
+            }
         }
 
-        if (Math.abs(orientation[0]) > Math.abs(orientation[1])) {
-            lookOrientation = orientation[0] < 0 ? 1 : 3; // 1:влево, 3:вправо
-        } else {
-            lookOrientation = orientation[1] < 0 ? 2 : 0; // 2:вверх, 0:вниз
+        if(this.currentPosition.cellEquals(this.targetPosition)){
+            this.targetPosition = getNextStep();
         }
     }
 
@@ -127,6 +155,7 @@ public class Enemy implements Cloneable{
     }
 
     public Cell getNextStep() {
+        wayProgress++;
         if (wayProgress < way.size()) return way.get(wayProgress);
         return null;
     }
@@ -146,7 +175,7 @@ public class Enemy implements Cloneable{
     public void setWay(ArrayList<Cell> way) {
         this.way = way;
         this.currentPosition = way.getFirst();
-        this.targetPosition = way.getFirst();
+        this.targetPosition = getNextStep();
         x=currentPosition.getXCord() * CELL_WIDTH;
         y=currentPosition.getYCord() * CELL_WIDTH;
     }
@@ -187,5 +216,13 @@ public class Enemy implements Cloneable{
 
     public void setLookOrientation(int lookOrientation) {
         this.lookOrientation = lookOrientation;
+    }
+
+    public boolean isReached() {
+        return isReached;
+    }
+
+    public double getWayPassed() {
+        return wayPassed;
     }
 }

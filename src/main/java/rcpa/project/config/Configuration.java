@@ -91,6 +91,8 @@ public interface Configuration {
         WAVE_STARTED,
         WAVE_END,
         LEVEL_ENTER,
+        GAME_WIN,
+        GAME_LOSE
     }
 
     //Анимация

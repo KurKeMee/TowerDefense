@@ -9,6 +9,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.Comparator;
 
 import static rcpa.project.config.Configuration.CELL_WIDTH;
 
@@ -85,7 +86,7 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
             double distance = Math.sqrt(Math.pow((enemy.getX()+(double)CELL_WIDTH/2)-(x+(double)CELL_WIDTH/2),2)
                     +Math.pow((enemy.getY()+ (double) CELL_WIDTH /2)-(y+(double)CELL_WIDTH/2),2));
             return distance<=radius;
-        }).findFirst().orElse(null);
+        }).max(Comparator.comparingDouble(Enemy::getWayPassed)).orElse(null);
 
         if(target!=null) attack.setTarget(target);
     }
@@ -218,5 +219,13 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
 
     public void setMarketId(int marketId) {
         this.marketId = marketId;
+    }
+
+    public int getCost() {
+        return cost;
+    }
+
+    public void setCost(int cost) {
+        this.cost = cost;
     }
 }
