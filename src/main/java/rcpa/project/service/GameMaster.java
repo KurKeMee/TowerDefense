@@ -77,7 +77,7 @@ public class GameMaster implements GameClient.ClientListener {
         if (gameStatus != MAIN_MENU && gameStatus!= GAME_LOSE && gameStatus!=GAME_WIN) frameCount++;
         if (gameStatus == GAME_LOSE || gameStatus == GAME_WIN) endTime++;
 
-        if (endTime == 500) {
+        if (endTime == 250) {
             returnToMenu();
         }
 

@@ -95,7 +95,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
                 g.drawString(getText(), x, y+10);
             }
         };
-        butStartGame.addActionListener(_ -> {
+        butStartGame.addActionListener(e -> {
             if (gameMaster.getGameClient() != null && gameMaster.isMultiplayer()) {
                 gameMaster.getGameClient().sendRequest(Message.Type.START_GAME, null);
                 System.out.println("Запрос на старт игры отправлен");
@@ -130,7 +130,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
                 g.drawString(getText(), x, y+10);
             }
         };
-        butJoin.addActionListener(_ -> {
+        butJoin.addActionListener(e -> {
             String serverIP = JOptionPane.showInputDialog(frame,
                     "Введите IP сервера:", "127.0.0.1");
             if (serverIP != null && !serverIP.isEmpty()) {
@@ -183,7 +183,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
         butHost.setOpaque(false);
 
         butHost.setBounds(100,430,384,96);
-        butHost.addActionListener(_ -> {
+        butHost.addActionListener(e -> {
             gameMaster.startServer();
 
             if (gameMaster.connectToServer("127.0.0.1", 8080)) {
@@ -223,7 +223,7 @@ public class GamePanel extends JPanel implements ActionListener, MouseMotionList
 
         butExit.setIcon(new ImageIcon(EXIT_BUTTON_IMAGE));
         butExit.setBounds(100,600,384,96);
-        butExit.addActionListener(_ -> System.exit(0));
+        butExit.addActionListener(e -> System.exit(0));
 
 
         this.add(butExit);

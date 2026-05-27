@@ -106,7 +106,7 @@ public class Enemy implements Cloneable{
             return false;
         }
         else {
-            this.image = animation.getFirst();
+            this.image = animation.get(0);
             animationStatus=0;
             return true;
         }
@@ -174,7 +174,7 @@ public class Enemy implements Cloneable{
 
     public void setWay(ArrayList<Cell> way) {
         this.way = way;
-        this.currentPosition = way.getFirst();
+        this.currentPosition = way.get(0);
         this.targetPosition = getNextStep();
         x=currentPosition.getXCord() * CELL_WIDTH;
         y=currentPosition.getYCord() * CELL_WIDTH;

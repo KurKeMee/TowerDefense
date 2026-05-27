@@ -154,7 +154,7 @@ public class GameRoom {
             gameStarted = true;
             startTime = System.currentTimeMillis();
             waveLevel = 1;
-            enemiesPerWave = waveEnemyTypes.getFirst().size();
+            enemiesPerWave = waveEnemyTypes.get(0).size();
             enemyCountSpawned = 0;
             waveActive = true;
             frameCount = 0;

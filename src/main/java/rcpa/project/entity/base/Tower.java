@@ -100,7 +100,7 @@ public class Tower<T extends Attack> extends JComponent implements Cloneable {
         }
         else {
             isAnimation = false;
-            this.image = animation.getFirst();
+            this.image = animation.get(0);
             animationStatus=0;
             return true;
         }

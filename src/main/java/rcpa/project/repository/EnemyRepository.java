@@ -76,21 +76,21 @@ public class EnemyRepository {
                                                         EnemyType.DEFAULT_ENEMY.id,
                                                         30,
                                                         2,
-                                                        anim.getFirst(),
+                                                        anim.get(0),
                                                         anim,
                                                         "Slime"),
                                                 new Enemy(
                                                         EnemyType.BIG_ENEMY.id,
                                                         150,
                                                         1,
-                                                        anim.getFirst(),
+                                                        anim.get(0),
                                                         anim,
                                                         "Big Smile"),
                                                 new Enemy(
                                                         EnemyType.SPEEDY_ENEMY.id,
                                                         35,
                                                         5,
-                                                        anim.getFirst(),
+                                                        anim.get(0),
                                                         anim,
                                                         "Speedy Slime")));
 
